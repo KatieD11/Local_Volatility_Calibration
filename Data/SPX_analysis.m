@@ -32,6 +32,9 @@ optionData.Strike = spx_df_trim.Strike;
 % Estimate market price as midpoint of bid and ask
 optionData.CallMktPrice = (spx_df_trim.Bid+spx_df_trim.Ask)/2;
 optionData.PutMktPrice = (spx_df_trim.Bid_1+spx_df_trim.Ask_1)/2;
+
+% Store option data
+%writetable(optionData, "spx_quotedata20220401_optionData.csv")
 %% 
 % Find discount factors from dataset
 DFs = DiscountFactors(optionData, S0);
