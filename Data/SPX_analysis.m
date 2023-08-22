@@ -1,0 +1,51 @@
+% S&P500 data analysis 2022–04–01
+clear; clc;
+% Load data: 
+% Closing prices for all European call and put options 
+% for various strikes and maturities
+spx_df=readtable("spx_quotedata20220401_all.xlsx");
+%% 
+% Spot price at closing on 2022–04–01 
+S0 = 4545.86;
+t0 = datetime('2022-04-01', 'Format', 'yyyy-MM-dd');
+
+% Only consider options with a time to maturity
+% >= 14 days and <= 400 days
+dateFormat = 'eee MMM dd yyyy';
+ExpirationDate = datetime(spx_df.ExpirationDate, 'InputFormat', dateFormat);
+timeFilter = days(ExpirationDate - t0)>=14 & ...
+    days(ExpirationDate - t0)<=400;
+spx_df_trim = spx_df(timeFilter,:);
+
+% ExpirationDate and Strike: common to both calls and puts
+% Bid, Ask and OpenInterest: for call options
+% Bid_1, Ask_1 and OpenInterest_1: for put options
+
+% Calculate time to expiration from ExpirationDate (trimmed version)
+ExpirationDate_trim = datetime(spx_df_trim.ExpirationDate, 'InputFormat', dateFormat);
+TimeToExpiration = years(ExpirationDate_trim - t0);
+
+% Option data
+optionData = table;
+optionData.TimeToExpiration = TimeToExpiration;
+optionData.Strike = spx_df_trim.Strike;
+% Estimate market price as midpoint of bid and ask
+optionData.CallMktPrice = (spx_df_trim.Bid+spx_df_trim.Ask)/2;
+optionData.PutMktPrice = (spx_df_trim.Bid_1+spx_df_trim.Ask_1)/2;
+%% 
+% Find discount factors from dataset
+DFs = DiscountFactors(optionData, S0);
+BT = DFs(:,1);
+QT = DFs(:,2);
+% Maturity times
+T_vals = unique(optionData.TimeToExpiration);
+
+% Plot discount factors
+figure(1)
+plot(T_vals, BT, "-b")
+hold on
+plot(T_vals, QT, "-r")
+hold off
+legend(["B(T)", "Q(T)"])
+xlabel("Maturity (T)")
+title("Discount factors")
