@@ -52,3 +52,32 @@ hold off
 legend(["B(T)", "Q(T)"])
 xlabel("Maturity (T)")
 title("Discount factors")
+%% 
+% Find the ATM total implied variance θTi for each maturity
+
+% Forward prices 
+FT = S0*QT./BT; 
+%plot(T_vals, FT)
+
+% Iterate through each time to maturity Ti and 
+% find the ATM total implied variance for FTi
+% θTi =σ^2(T,FTi)* Ti
+total_impl_vars = zeros(length(T_vals),1);
+impl_vols = zeros(length(T_vals),1); % BS implied volatilities
+r=5/100; % risk-free rate
+for i=1:length(T_vals) 
+    % var = TotalImpliedVariance(Ki, Ti, r, S0, optionData);
+    [total_impl_vars(i), impl_vols(i)] = TotalImpliedVariance(FT(i), T_vals(i), r, S0, optionData);
+end
+
+figure(2)
+plot(T_vals, total_impl_vars)
+xlabel("Maturity (T)")
+ylabel("θT")
+title("ATM total implied variance θT for different maturities")
+
+figure(3)
+plot(T_vals, impl_vols)
+xlabel("Maturity (T)")
+ylabel("BS implied volatility")
+title("BS implied volatilities for different maturities")
