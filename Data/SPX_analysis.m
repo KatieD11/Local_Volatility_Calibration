@@ -81,3 +81,21 @@ plot(T_vals, impl_vols)
 xlabel("Maturity (T)")
 ylabel("BS implied volatility")
 title("BS implied volatilities for different maturities")
+%% 
+% Compute values of kj,  k(T,K)=log(K/FT) 
+k_vals = [];
+for i = 1:length(T_vals)
+    Ks = optionData.Strike(optionData.TimeToExpiration == T_vals(i));
+    kj = log(Ks/FT(i));
+    k_vals = [k_vals; kj];
+end
+optionData.k = k_vals;
+
+% Filter option data:
+% All options with |kj|/sqrt(θTi) > 3.5 are censored from the data set
+filtered_optionData = optionData;
+for i = 1:length(T_vals)
+    filter = (filtered_optionData.TimeToExpiration == T_vals(i)) & ...
+        (abs(filtered_optionData.k)/sqrt(total_impl_vars(i)) > 3.5);
+    filtered_optionData(filter,:) =[];
+end
