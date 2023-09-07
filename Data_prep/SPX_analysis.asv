@@ -95,8 +95,7 @@ optionData.k = k_vals;
 % All options with |kj|/sqrt(θTi) > 3.5 are censored from the data set
 filtered_optionData = optionData;
 for i = 1:length(T_vals)
-    filter = (filtered_optionData.TimeToExpiration == T_vals(i)) & ...
-        (abs(filtered_optionData.k)/sqrt(total_impl_vars(i)) > 3.5);
-    filtered_optionData(filter,:) =[];
+    filter = (filtered_optionData.TimeToExpiration == T_vals(i)) && ...
+        (abs(filtered_optionData.k))
+    filtered_optionData()
 end
-%writetable(optionData, "spx_quotedata20220401_filtered_optionData.csv")
