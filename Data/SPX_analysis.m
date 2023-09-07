@@ -99,3 +99,4 @@ for i = 1:length(T_vals)
         (abs(filtered_optionData.k)/sqrt(total_impl_vars(i)) > 3.5);
     filtered_optionData(filter,:) =[];
 end
+%writetable(optionData, "spx_quotedata20220401_filtered_optionData.csv")
