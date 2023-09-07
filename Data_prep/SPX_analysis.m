@@ -93,11 +93,17 @@ for i = 1:length(T_vals)
     kj = log(Ks/FT(i));
     k_vals = [k_vals; kj];
 end
-optionData.k = k_vals;
+optionData.logStrike = k_vals;
+
+% Add bid and ask prices back before filtering data set
+optionData.CallBidPrice = spx_df_trim.Bid;
+optionData.CallAskPrice = spx_df_trim.Ask;
+optionData.PutBidPrice = spx_df_trim.Bid_1;
+optionData.PutAskPrice = spx_df_trim.Ask_1;
 
 % Filter option data:
 % All options with |kj|/sqrt(θTi) > 3.5 are censored from the data set
-filter = ((abs(optionData.k)./sqrt(optionData.TotalImplVar)) > 3.5);
+filter = ((abs(optionData.logStrike)./sqrt(optionData.TotalImplVar)) > 3.5);
 filtered_optionData = optionData(~filter,:);
 
 %writetable(filtered_optionData, "Data/spx_quotedata20220401_filtered_optionData.csv")
