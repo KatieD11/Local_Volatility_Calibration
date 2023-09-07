@@ -65,9 +65,13 @@ FT = S0*QT./BT;
 total_impl_vars = zeros(length(T_vals),1);
 impl_vols = zeros(length(T_vals),1); % BS implied volatilities
 r=5/100; % risk-free rate
+optionData.TotalImplVar = zeros(length(optionData.TimeToExpiration),1);
 for i=1:length(T_vals) 
     % var = TotalImpliedVariance(Ki, Ti, r, S0, optionData);
     [total_impl_vars(i), impl_vols(i)] = TotalImpliedVariance(FT(i), T_vals(i), r, S0, optionData);
+    % Add total implied variance to option data table
+    optionData.TotalImplVar(optionData.TimeToExpiration == T_vals(i)) ...
+    = total_impl_vars(i);
 end
 
 figure(2)
@@ -93,10 +97,7 @@ optionData.k = k_vals;
 
 % Filter option data:
 % All options with |kj|/sqrt(θTi) > 3.5 are censored from the data set
-filtered_optionData = optionData;
-for i = 1:length(T_vals)
-    filter = (filtered_optionData.TimeToExpiration == T_vals(i)) & ...
-        (abs(filtered_optionData.k)/sqrt(total_impl_vars(i)) > 3.5);
-    filtered_optionData(filter,:) =[];
-end
+filter = ((abs(optionData.k)./sqrt(optionData.TotalImplVar)) > 3.5);
+filtered_optionData = optionData(~filter,:);
+
 %writetable(filtered_optionData, "Data/spx_quotedata20220401_filtered_optionData.csv")
