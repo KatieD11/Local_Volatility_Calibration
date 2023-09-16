@@ -71,9 +71,11 @@ optionData.TotalImplVar = zeros(length(optionData.TimeToExpiration),1);
 for i=1:length(T_vals) 
     [total_impl_vars(i), impl_vols(i)] = TotalImpliedVariance(FT(i), ...
         T_vals(i), rT(i), S0, optionData);
-    % Add total implied variance to option data table
+    % Add total implied variance and rT to option data table
     optionData.TotalImplVar(optionData.TimeToExpiration == T_vals(i)) ...
     = total_impl_vars(i);
+    optionData.rT(optionData.TimeToExpiration == T_vals(i)) ...
+    = rT(i);
 end
 
 figure(2)
@@ -117,4 +119,3 @@ discountData.QT = QT;
 discountData.TotImplVar = total_impl_vars;
 discountData.rT = rT;
 %writetable(discountData, "Data/spx_quotedata20220401_discountData.csv")
-
