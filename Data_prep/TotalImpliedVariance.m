@@ -1,5 +1,4 @@
-% At-the-money total implied variance 
-% for a specified strike (Ki) and maturity (Ti)
+% At-the-money total implied variance, for a given strike (Ki) and maturity (Ti)
 % optionData columns: TimeToExpiration, Strike, CallMktPrice, PutMktPrice 
 % S0 (Current price of the underlying asset), r (risk-free rate)
 % [var, BSvol] = TotalImpliedVariance(Ki, Ti, r, S0, optionData)
@@ -45,7 +44,7 @@ function [var, BSvol] = TotalImpliedVariance(Ki, Ti, r, S0, optionData)
     BSvol = (call_BSvol + put_BSvol)/2;
     
     % Forward at-the-money Black-Scholes total implied variance for maturity T 
-    % θTi =σ^2(T,FTi)* Ti
+    % θTi =σ^2(Ti,FTi)* Ti
     var = BSvol^2*Ti;
 end
 % Notes:

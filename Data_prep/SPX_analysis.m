@@ -59,16 +59,18 @@ title("Discount factors")
 FT = S0*QT./BT; 
 %plot(T_vals, FT)
 
+% Find discount rates from BT 
+rT = -1./T_vals.*log(BT);
+
 % Iterate through each time to maturity Ti and 
 % find the ATM total implied variance for FTi
-% θTi =σ^2(T,FTi)* Ti
+% θTi =σ^2(Ti,FTi)* Ti
 total_impl_vars = zeros(length(T_vals),1);
 impl_vols = zeros(length(T_vals),1); % BS implied volatilities
-r=5/100; % risk-free rate
 optionData.TotalImplVar = zeros(length(optionData.TimeToExpiration),1);
 for i=1:length(T_vals) 
-    % var = TotalImpliedVariance(Ki, Ti, r, S0, optionData);
-    [total_impl_vars(i), impl_vols(i)] = TotalImpliedVariance(FT(i), T_vals(i), r, S0, optionData);
+    [total_impl_vars(i), impl_vols(i)] = TotalImpliedVariance(FT(i), ...
+        T_vals(i), rT(i), S0, optionData);
     % Add total implied variance to option data table
     optionData.TotalImplVar(optionData.TimeToExpiration == T_vals(i)) ...
     = total_impl_vars(i);
@@ -107,3 +109,12 @@ filter = ((abs(optionData.logStrike)./sqrt(optionData.TotalImplVar)) > 3.5);
 filtered_optionData = optionData(~filter,:);
 
 %writetable(filtered_optionData, "Data/spx_quotedata20220401_filtered_optionData.csv")
+%% 
+% Create a table with discount factors, TotalImplVar, and discount rates
+discountData = table;
+discountData.BT = BT;
+discountData.QT = QT;
+discountData.TotImplVar = total_impl_vars;
+discountData.rT = rT;
+%writetable(discountData, "Data/spx_quotedata20220401_discountData.csv")
+
