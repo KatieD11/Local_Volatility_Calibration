@@ -63,6 +63,9 @@ for i = 1: length(spx_df.TimeToExpiration)
 
 end
 
+% Store option data
+%writetable(spx_df, "Data_prep/Data/spx_quotedata20220401_filtered_optionDataWithImplVol.csv")
+
 % Find time to expiration corresponding to 90 days
 T_vals = unique(spx_df.TimeToExpiration); % Maturities from option data
 T_below = max(T_vals(T_vals <= 90/365));

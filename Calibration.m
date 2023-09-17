@@ -2,89 +2,86 @@
 clear; clc;
 addpath('./Data_prep');
 
-spx_df=readtable("Data_prep/Data/spx_quotedata20220401_filtered_optionData.csv");
+% Filtered dataset with BS implied volatilities
+spx_df=readtable("Data_prep/Data/spx_quotedata20220401_filtered_optionDataWithImplVol.csv");
+% Data set with discount factors (BT, QT) and ATM total implied variance
 discountData_df=readtable("Data_prep/Data/spx_quotedata20220401_discountData.csv");
 
 S0 = 4545.86;
 
-% Find BS implied vols for the bid/ask calls and puts
-spx_df.callBid_BSvol = zeros(length(spx_df.TimeToExpiration),1);
-spx_df.callAsk_BSvol = zeros(length(spx_df.TimeToExpiration),1);
-spx_df.putBid_BSvol = zeros(length(spx_df.TimeToExpiration),1);
-spx_df.putAsk_BSvol = zeros(length(spx_df.TimeToExpiration),1);
-for i = 1: length(spx_df.TimeToExpiration)
-    % Find BS implied vols for the bid/ask calls and puts
-    T = spx_df.TimeToExpiration(i);
-    K = spx_df.Strike(i);
-    QT = discountData_df.QT(discountData_df.T == T);
-    BT = discountData_df.BT(discountData_df.T == T);
-%     % Call bid
-%     spx_df.callBid_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.CallBidPrice(i),0.1);
-%     % Call ask
-%     spx_df.callAsk_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.CallAskPrice(i),0.1);
-%     % Put bid
-%     spx_df.putBid_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.PutBidPrice(i),0.1);
-%     % Put ask
-%     spx_df.putAsk_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.PutAskPrice(i),0.1); 
-    % fzero with tolerance set:
-%     options = optimset;
-%     opt = optimset(options,'TolX',1e-25);
-%     % Call bid
-%     spx_df.callBid_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.CallBidPrice(i),0.1,opt);
-%     % Call ask
-%     spx_df.callAsk_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.CallAskPrice(i),0.1,opt);
-%     % Put bid
-%     spx_df.putBid_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.PutBidPrice(i),0.1,opt);
-%     % Put ask
-%     spx_df.putAsk_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.PutAskPrice(i),0.1,opt); 
-    % fminsearch:
-    options = optimset('TolX', 1e-10);
-    % Call bid
-    spx_df.callBid_BSvol(i) = fminsearch(@(BSvol) abs(BScall(T,K,S0,BSvol,QT, BT) ...
-        - spx_df.CallBidPrice(i)),0.1,options);
-    % Call ask
-    spx_df.callAsk_BSvol(i) = fminsearch(@(BSvol) abs(BScall(T,K,S0,BSvol,QT, BT) ...
-        - spx_df.CallAskPrice(i)),0.1,options);
-    % Put bid
-    spx_df.putBid_BSvol(i) = fminsearch(@(BSvol) abs(BSput(T,K,S0,BSvol,QT, BT) ...
-        - spx_df.PutBidPrice(i)),0.1,options);
-    % Put ask
-    spx_df.putAsk_BSvol(i) = fminsearch(@(BSvol) abs(BSput(T,K,S0,BSvol,QT, BT) ...
-        - spx_df.PutAskPrice(i)),0.1,options);  
+spx_df.Properties.VariableNames
+discountData_df.Properties.VariableNames
+
+% Find sigma_ask and sigma_bid for the option dataset
+% σask (Ti , Kj ) is the smallest Black-Scholes implied volatility for the call and put ask prices at maturity Ti and strike Kj
+% σbid(Ti,Kj) is the largest Black-Scholes implied volatility for the call and put bid prices at maturity Ti and strike Kj
+col_names = {'TimeToExpiration', 'Strike', 'sigma_ask', 'sigma_bid'};
+col_types = {'double', 'double','double', 'double'}; 
+
+% Create an empty table with specified column names and data types
+option_df = table('Size', [0, length(col_names)], 'VariableNames', ...
+    col_names, 'VariableTypes', col_types);
+
+% [Start with nested loops, then try to make more efficient]
+for i = 1:length(discountData_df.T)
+    Ti = discountData_df.T(i);
+    Ks = spx_df.Strike(spx_df.TimeToExpiration == Ti);
+    %for Kj = spx_df.Strike(spx_df.TimeToExpiration == Ti)
+    for j = length(Ks)
+        Kj = Ks(j);
+        % Find sigma_ask from call and put ask vols
+        callAsk_BSvol = spx_df.callAsk_BSvol(spx_df.TimeToExpiration == Ti & ...
+            spx_df.Strike == Kj);
+        putAsk_BSvol = spx_df.putAsk_BSvol(spx_df.TimeToExpiration == Ti & ...
+            spx_df.Strike == Kj);
+        sigma_ask = min(callAsk_BSvol, putAsk_BSvol);
+        % Find sigma_bid from call and put bid vols
+        callBid_BSvol = spx_df.callBid_BSvol(spx_df.TimeToExpiration == Ti & ...
+            spx_df.Strike == Kj);
+        putBid_BSvol = spx_df.putBid_BSvol(spx_df.TimeToExpiration == Ti & ...
+            spx_df.Strike == Kj);
+        sigma_bid = max(callBid_BSvol, putBid_BSvol);
+        % Add the values to the table
+        new_row = {Ti, Kj, sigma_ask,sigma_bid};
+        option_df = [option_df; new_row];
+
+    end
+end
+
+
+%% 
+% Define objective function for optimisation problem (calibration)
+% Columns of option_df: TimeToExpiration, Strike, sigma_ask, sigma_bid
+function f = obj_fnc(discountData_df, option_df, eta, rho) 
+    % Define constants (S3)
+    gamma1 = 0.238; gamma2 = 0.253; 
+    beta1 = exp(5.18); beta2 = exp(-3);
+    eta = @(eps) 2.016048*exp(eps);
+    
+    % Define functions phi and w
+    phi = @(eta, theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
+        (1+beta2*theta)^(1-gamma1-gamma2));
+    w = @(eta, thetaT, rho, T, k) thetaT/2*(1+rho*phi(thetaT)*k + ...
+        sqrt((phi(thetaT)*k + rho)^2 + (1-rho^2)));
+
+    min_f = 0;
+    
+    % [Start with nested loops, then try to make more efficient]
+    %for Ti=discountData_df.T
+    for i = 1:length(discountData_df.T)
+        Ti = discountData_df.T(i);
+        Ks = option_df.Strike(option_df.TimeToExpiration == Ti);
+        %for Kj = spx_df.Strike(spx_df.TimeToExpiration == Ti)
+        for j = length(Ks)
+            Kj = Ks(j);
+            kj = option_df.logStrike(option_df.TimeToExpiration == Ti & ...
+                option_df.Strike == Kj);
+            w(eta, thetaT, rho, T, k)
+        end
+    end
 
 end
 
-% Find time to expiration corresponding to 90 days
-T_vals = unique(spx_df.TimeToExpiration); % Maturities from option data
-T_below = max(T_vals(T_vals <= 90/365));
-T_above = min(T_vals(T_vals >= 90/365));
-
-filter90 = (spx_df.TimeToExpiration >= T_below) & (spx_df.TimeToExpiration < T_above);
-figure(1)
-plot(spx_df.logStrike(filter90), spx_df.callBid_BSvol(filter90), ".");
-hold on
-plot(spx_df.logStrike(filter90), spx_df.callAsk_BSvol(filter90), ".");
-hold on
-plot(spx_df.logStrike(filter90), spx_df.putBid_BSvol(filter90), ".");
-hold on
-plot(spx_df.logStrike(filter90), spx_df.putAsk_BSvol(filter90), ".");
-hold off
-xlabel("Log strike")
-ylabel("BS implied vol")
-legend(["Call bid", "Call ask", "Put bid", "Put ask"])
-title("SPX: maturity 90 days (2022-4-1)")
-
-%% 
-
-% Define objective function for optimisation problem
 % Columns of filteredOptionData:
 % TimeToExpiration, Strike, CallMktPrice, PutMktPrice, TotalImplVar, 
 % logStrike, CallBidPrice, CallAskPrice, PutBidPrice, PutAskPrice
