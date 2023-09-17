@@ -2,7 +2,7 @@
 % optionData columns: TimeToExpiration, Strike, CallMktPrice, PutMktPrice 
 % S0 (Current price of the underlying asset), r (risk-free rate)
 % [var, BSvol] = TotalImpliedVariance(Ki, Ti, r, S0, optionData)
-function [var, BSvol] = TotalImpliedVariance(Ki, Ti, r, S0, optionData)
+function [var, BSvol] = TotalImpliedVariance(Ki, Ti, QT, BT, S0, optionData)
     % Find the strikes just below and just above the target strike
     strikes = unique(optionData.Strike(optionData.TimeToExpiration == Ti)); % Strikes from option data
     strike_below = max(strikes(strikes <= Ki));
@@ -34,12 +34,10 @@ function [var, BSvol] = TotalImpliedVariance(Ki, Ti, r, S0, optionData)
     call_i = weight_below * call_below + weight_above * call_above;
     put_i = weight_below * put_below + weight_above * put_above;
     
-    % Black-Scholes implied volatilities (using interpolated prices)
-    % Note: blsimpv(Price,Strike,Rate,Time,Value, [Limit], [Yield], [Class])
-    % Volatility = blsimpv(100, 95, 0.075, 0.25, 10, 'Limit',0.5,'Yield',0,'Class', {'Call'})
-    call_BSvol = blsimpv(S0,Ki,r,Ti,call_i,'Class', {'Call'});
-    put_BSvol = blsimpv(S0,Ki,r,Ti,put_i,'Class', {'Put'});
-    
+    % Find Black-Scholes implied volatilities (using interpolated prices)
+    call_BSvol = fzero(@(BSvol) BScall(Ti,Ki,S0,BSvol,QT, BT) - call_i,0.1);
+    put_BSvol = fzero(@(BSvol) BSput(Ti,Ki,S0,BSvol,QT, BT) - put_i,0.1); 
+
     % Average of the put and call Black-Scholes implied volatilities
     BSvol = (call_BSvol + put_BSvol)/2;
     

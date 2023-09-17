@@ -1,21 +1,35 @@
 % Test calibration (S5 of project outline)
 clear; clc;
+addpath('./Data_prep');
+
 spx_df=readtable("Data_prep/Data/spx_quotedata20220401_filtered_optionData.csv");
-%discountData_df=readtable("Data_prep/Data/spx_quotedata20220401_discountData.csv");
+discountData_df=readtable("Data_prep/Data/spx_quotedata20220401_discountData.csv");
 
 S0 = 4545.86;
 
-% Black-Scholes implied volatilities (using interpolated prices)
-% Note: blsimpv(Price,Strike,Rate,Time,Value, [Limit], [Yield], [Class])
+% Find BS implied vols for the bid/ask calls and puts
 spx_df.callBid_BSvol = zeros(length(spx_df.TimeToExpiration),1);
 spx_df.callAsk_BSvol = zeros(length(spx_df.TimeToExpiration),1);
+spx_df.putBid_BSvol = zeros(length(spx_df.TimeToExpiration),1);
+spx_df.putAsk_BSvol = zeros(length(spx_df.TimeToExpiration),1);
 for i = 1: length(spx_df.TimeToExpiration)
-    spx_df.callBid_BSvol(i) = ...
-        blsimpv(S0,spx_df.Strike(i),spx_df.rT(i),spx_df.TimeToExpiration(i), ... 
-        spx_df.CallBidPrice(i),'Class', {'Call'});
-    spx_df.callAsk_BSvol(i) = ...
-        blsimpv(S0,spx_df.Strike(i),spx_df.rT(i),spx_df.TimeToExpiration(i), ... 
-        spx_df.CallAskPrice(i),'Class', {'Call'});
+    % Find BS implied vols for the bid/ask calls and puts
+    T = spx_df.TimeToExpiration(i);
+    K = spx_df.Strike(i);
+    QT = discountData_df.QT(discountData_df.T == T);
+    BT = discountData_df.BT(discountData_df.T == T);
+    % Call bid
+    spx_df.callBid_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
+        - spx_df.CallBidPrice(i),0.1);
+    % Call ask
+    spx_df.callAsk_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
+        - spx_df.CallAskPrice(i),0.1);
+    % Put bid
+    spx_df.putBid_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
+        - spx_df.PutBidPrice(i),0.1);
+    % Put ask
+    spx_df.putAsk_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
+        - spx_df.PutAskPrice(i),0.1);    
 end
 
 % Find time to expiration corresponding to 90 days
@@ -28,10 +42,15 @@ figure(1)
 plot(spx_df.logStrike(filter90), spx_df.callBid_BSvol(filter90), ".");
 hold on
 plot(spx_df.logStrike(filter90), spx_df.callAsk_BSvol(filter90), ".");
+hold on
+plot(spx_df.logStrike(filter90), spx_df.putBid_BSvol(filter90), ".");
+hold on
+plot(spx_df.logStrike(filter90), spx_df.putAsk_BSvol(filter90), ".");
 hold off
 xlabel("Log strike")
 ylabel("BS implied vol")
-legend(["Call bid", "Call ask"])
+legend(["Call bid", "Call ask", "Put bid", "Put ask"])
+title("SPX: maturity 90 days (2022-4-1)")
 
 %% 
 

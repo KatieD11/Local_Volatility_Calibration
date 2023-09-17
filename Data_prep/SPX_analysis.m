@@ -70,12 +70,11 @@ impl_vols = zeros(length(T_vals),1); % BS implied volatilities
 optionData.TotalImplVar = zeros(length(optionData.TimeToExpiration),1);
 for i=1:length(T_vals) 
     [total_impl_vars(i), impl_vols(i)] = TotalImpliedVariance(FT(i), ...
-        T_vals(i), rT(i), S0, optionData);
-    % Add total implied variance and rT to option data table
+        T_vals(i), QT(i), BT(i), S0, optionData);
+    % Add total implied variance to option data table
     optionData.TotalImplVar(optionData.TimeToExpiration == T_vals(i)) ...
     = total_impl_vars(i);
-    optionData.rT(optionData.TimeToExpiration == T_vals(i)) ...
-    = rT(i);
+
 end
 
 figure(2)
@@ -114,6 +113,7 @@ filtered_optionData = optionData(~filter,:);
 %% 
 % Create a table with discount factors, TotalImplVar, and discount rates
 discountData = table;
+discountData.T = T_vals;
 discountData.BT = BT;
 discountData.QT = QT;
 discountData.TotImplVar = total_impl_vars;
