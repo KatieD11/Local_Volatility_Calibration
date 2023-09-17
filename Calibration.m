@@ -9,14 +9,14 @@ discountData_df=readtable("Data_prep/Data/spx_quotedata20220401_discountData.csv
 
 S0 = 4545.86;
 
-spx_df.Properties.VariableNames
-discountData_df.Properties.VariableNames
+% spx_df.Properties.VariableNames
+% discountData_df.Properties.VariableNames
 
 % Find sigma_ask and sigma_bid for the option dataset
 % σask (Ti , Kj ) is the smallest Black-Scholes implied volatility for the call and put ask prices at maturity Ti and strike Kj
 % σbid(Ti,Kj) is the largest Black-Scholes implied volatility for the call and put bid prices at maturity Ti and strike Kj
-col_names = {'TimeToExpiration', 'Strike', 'sigma_ask', 'sigma_bid'};
-col_types = {'double', 'double','double', 'double'}; 
+col_names = {'TimeToExpiration', 'Strike', 'logStrike', 'sigma_ask', 'sigma_bid'};
+col_types = {'double','double','double','double','double'}; 
 
 % Create an empty table with specified column names and data types
 option_df = table('Size', [0, length(col_names)], 'VariableNames', ...
@@ -27,32 +27,49 @@ for i = 1:length(discountData_df.T)
     Ti = discountData_df.T(i);
     Ks = spx_df.Strike(spx_df.TimeToExpiration == Ti);
     %for Kj = spx_df.Strike(spx_df.TimeToExpiration == Ti)
-    for j = length(Ks)
+    for j = 1:length(Ks)
+        % Skip sets that are already recorded
+        if (j>1 && Ks(j)==Ks(j-1))
+            continue
+        end
         Kj = Ks(j);
+        % Filter by Ti and Kj
+        filter = spx_df.TimeToExpiration == Ti & ...
+            spx_df.Strike == Kj;
         % Find sigma_ask from call and put ask vols
-        callAsk_BSvol = spx_df.callAsk_BSvol(spx_df.TimeToExpiration == Ti & ...
-            spx_df.Strike == Kj);
-        putAsk_BSvol = spx_df.putAsk_BSvol(spx_df.TimeToExpiration == Ti & ...
-            spx_df.Strike == Kj);
+        callAsk_BSvol = spx_df.callAsk_BSvol(filter);
+        putAsk_BSvol = spx_df.putAsk_BSvol(filter);
         sigma_ask = min(callAsk_BSvol, putAsk_BSvol);
         % Find sigma_bid from call and put bid vols
-        callBid_BSvol = spx_df.callBid_BSvol(spx_df.TimeToExpiration == Ti & ...
-            spx_df.Strike == Kj);
-        putBid_BSvol = spx_df.putBid_BSvol(spx_df.TimeToExpiration == Ti & ...
-            spx_df.Strike == Kj);
+        callBid_BSvol = spx_df.callBid_BSvol(filter);
+        putBid_BSvol = spx_df.putBid_BSvol(filter);
         sigma_bid = max(callBid_BSvol, putBid_BSvol);
-        % Add the values to the table
-        new_row = {Ti, Kj, sigma_ask,sigma_bid};
-        option_df = [option_df; new_row];
 
+        % Store log strike
+        kj = spx_df.logStrike(filter);
+
+        if length(sigma_ask)>1
+            sigma_ask=min(sigma_ask);
+            sigma_bid=max(sigma_bid);
+            kj = kj(1);
+        end
+        % Add the values to the table
+        new_row = {Ti, Kj, kj, sigma_ask,sigma_bid};
+        option_df = [option_df; new_row];
     end
 end
-
+%% 
+f = @(params) obj_fnc(discountData_df, option_df, params(1), params(2));
+%rho = 0.8467; eps = -0.6887;
+opt_params = fminsearch(f, [0.5, 0.5]);
+eps_opt = opt_params(1)
+rho_opt = opt_params(2)
 
 %% 
 % Define objective function for optimisation problem (calibration)
-% Columns of option_df: TimeToExpiration, Strike, sigma_ask, sigma_bid
-function f = obj_fnc(discountData_df, option_df, eta, rho) 
+% Columns of option_df: TimeToExpiration, Strike, logStrike, sigma_ask, sigma_bid
+% Columns of discountData_df: T, BT, QT, TotImplVar, rT
+function summation = obj_fnc(discountData_df, option_df, eps, rho) 
     % Define constants (S3)
     gamma1 = 0.238; gamma2 = 0.253; 
     beta1 = exp(5.18); beta2 = exp(-3);
@@ -61,28 +78,31 @@ function f = obj_fnc(discountData_df, option_df, eta, rho)
     % Define functions phi and w
     phi = @(eta, theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
         (1+beta2*theta)^(1-gamma1-gamma2));
-    w = @(eta, thetaT, rho, T, k) thetaT/2*(1+rho*phi(thetaT)*k + ...
-        sqrt((phi(thetaT)*k + rho)^2 + (1-rho^2)));
+    w = @(eta, rho, thetaT, T, k) thetaT/2*(1+rho*phi(eta,thetaT)*k + ...
+        sqrt((phi(eta,thetaT)*k + rho)^2 + (1-rho^2)));
 
-    min_f = 0;
+    summation = 0;
     
     % [Start with nested loops, then try to make more efficient]
     %for Ti=discountData_df.T
     for i = 1:length(discountData_df.T)
         Ti = discountData_df.T(i);
+        thetaTi = discountData_df.TotImplVar(i);
         Ks = option_df.Strike(option_df.TimeToExpiration == Ti);
         %for Kj = spx_df.Strike(spx_df.TimeToExpiration == Ti)
-        for j = length(Ks)
+        for j = 1:length(Ks)
             Kj = Ks(j);
-            kj = option_df.logStrike(option_df.TimeToExpiration == Ti & ...
-                option_df.Strike == Kj);
-            w(eta, thetaT, rho, T, k)
+            % Filter by Ti and Kj
+            filter = option_df.TimeToExpiration == Ti & ...
+                option_df.Strike == Kj;
+            kj = option_df.logStrike(filter);
+            sigma_ask = option_df.sigma_ask(filter);
+            sigma_bid = option_df.sigma_bid(filter);
+
+            summation = summation + (max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
+                - sigma_ask^2*Ti)^2 + min(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
+                - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2;
         end
     end
 
 end
-
-% Columns of filteredOptionData:
-% TimeToExpiration, Strike, CallMktPrice, PutMktPrice, TotalImplVar, 
-% logStrike, CallBidPrice, CallAskPrice, PutBidPrice, PutAskPrice
-%function res = CalibrationObjFnc(filteredOptionData, ) 
