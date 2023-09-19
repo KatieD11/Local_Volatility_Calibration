@@ -3,68 +3,10 @@
 clear; clc;
 addpath('./Data_prep');
 
-spx_df=readtable("Data_prep/Data/spx_quotedata20220401_filtered_optionData.csv");
+spx_df=readtable("Data_prep/Data/spx_quotedata20220401_filtered_optionDataWithImplVol.csv");
 discountData_df=readtable("Data_prep/Data/spx_quotedata20220401_discountData.csv");
 
 S0 = 4545.86;
-
-% Find BS implied vols for the bid/ask calls and puts
-spx_df.callBid_BSvol = zeros(length(spx_df.TimeToExpiration),1);
-spx_df.callAsk_BSvol = zeros(length(spx_df.TimeToExpiration),1);
-spx_df.putBid_BSvol = zeros(length(spx_df.TimeToExpiration),1);
-spx_df.putAsk_BSvol = zeros(length(spx_df.TimeToExpiration),1);
-for i = 1: length(spx_df.TimeToExpiration)
-    % Find BS implied vols for the bid/ask calls and puts
-    T = spx_df.TimeToExpiration(i);
-    K = spx_df.Strike(i);
-    QT = discountData_df.QT(discountData_df.T == T);
-    BT = discountData_df.BT(discountData_df.T == T);
-%     % Call bid
-%     spx_df.callBid_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.CallBidPrice(i),0.1);
-%     % Call ask
-%     spx_df.callAsk_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.CallAskPrice(i),0.1);
-%     % Put bid
-%     spx_df.putBid_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.PutBidPrice(i),0.1);
-%     % Put ask
-%     spx_df.putAsk_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.PutAskPrice(i),0.1); 
-    % fzero with tolerance set:
-%     options = optimset;
-%     opt = optimset(options,'TolX',1e-25);
-%     % Call bid
-%     spx_df.callBid_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.CallBidPrice(i),0.1,opt);
-%     % Call ask
-%     spx_df.callAsk_BSvol(i) = fzero(@(BSvol) BScall(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.CallAskPrice(i),0.1,opt);
-%     % Put bid
-%     spx_df.putBid_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.PutBidPrice(i),0.1,opt);
-%     % Put ask
-%     spx_df.putAsk_BSvol(i) = fzero(@(BSvol) BSput(T,K,S0,BSvol,QT, BT) ...
-%         - spx_df.PutAskPrice(i),0.1,opt); 
-    % fminsearch:
-    options = optimset('TolX', 1e-8);
-    % Call bid
-    spx_df.callBid_BSvol(i) = fminsearch(@(BSvol) abs(BScall(T,K,S0,BSvol,QT, BT) ...
-        - spx_df.CallBidPrice(i)),0.1,options);
-    % Call ask
-    spx_df.callAsk_BSvol(i) = fminsearch(@(BSvol) abs(BScall(T,K,S0,BSvol,QT, BT) ...
-        - spx_df.CallAskPrice(i)),0.1,options);
-    % Put bid
-    spx_df.putBid_BSvol(i) = fminsearch(@(BSvol) abs(BSput(T,K,S0,BSvol,QT, BT) ...
-        - spx_df.PutBidPrice(i)),0.1,options);
-    % Put ask
-    spx_df.putAsk_BSvol(i) = fminsearch(@(BSvol) abs(BSput(T,K,S0,BSvol,QT, BT) ...
-        - spx_df.PutAskPrice(i)),0.1,options);  
-
-end
-
-% Store option data
-%writetable(spx_df, "Data_prep/Data/spx_quotedata20220401_filtered_optionDataWithImplVol.csv")
 
 % Find time to expiration corresponding to 90 days
 T_vals = unique(spx_df.TimeToExpiration); % Maturities from option data
