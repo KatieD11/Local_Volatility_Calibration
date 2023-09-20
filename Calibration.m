@@ -106,7 +106,11 @@ f = @(params) obj_fnc(discountData_df, option_df, params(1), params(2));
 opt_params = fminsearch(f, [0.5, 0.5]);
 eps_opt = opt_params(1)
 rho_opt = opt_params(2)
-
+% Save params in csv file
+calibration_params = table;
+calibration_params.eps = eps_opt;
+calibration_params.rho = rho_opt;
+%writetable(calibration_params, "spx_20220401_calibration_params.csv")
 %% 
 % Define objective function for optimisation problem (calibration)
 % Columns of option_df: TimeToExpiration, Strike, logStrike, sigma_ask, sigma_bid
