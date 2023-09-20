@@ -11,6 +11,8 @@ spx_df=readtable("Data_prep/Data/spx_quotedata20220401_filtered_optionDataWithIm
 discountData_df=readtable("Data_prep/Data/spx_quotedata20220401_discountData.csv");
 
 S0 = 4545.86;
+total_open_interest_call = sum(spx_df.CallOpenInterest);
+total_open_interest_put = sum(spx_df.PutOpenInterest);
 
 % spx_df.Properties.VariableNames
 % discountData_df.Properties.VariableNames
@@ -18,8 +20,9 @@ S0 = 4545.86;
 % Find sigma_ask and sigma_bid for the option dataset
 % σask (Ti , Kj ) is the smallest Black-Scholes implied volatility for the call and put ask prices at maturity Ti and strike Kj
 % σbid(Ti,Kj) is the largest Black-Scholes implied volatility for the call and put bid prices at maturity Ti and strike Kj
-col_names = {'TimeToExpiration', 'Strike', 'logStrike', 'sigma_ask', 'sigma_bid'};
-col_types = {'double','double','double','double','double'}; 
+col_names = {'TimeToExpiration', 'Strike', 'logStrike', 'sigma_ask', ...
+    'sigma_bid', 'open_interest_ask', 'open_interest_bid'};
+col_types = {'double','double','double','double','double','double','double'}; 
 
 % Create an empty table with specified column names and data types
 option_df = table('Size', [0, length(col_names)], 'VariableNames', ...
@@ -56,12 +59,48 @@ for i = 1:length(discountData_df.T)
             sigma_bid=max(sigma_bid);
             kj = kj(1);
         end
+        % Add open interest to table
+        % Ask:
+        open_int_call_ask = spx_df.CallOpenInterest(spx_df.callAsk_BSvol == sigma_ask);
+        open_int_put_ask = spx_df.PutOpenInterest(spx_df.putAsk_BSvol == sigma_ask);
+        if ~isempty(open_int_call_ask)
+            open_int_ask = open_int_call_ask; 
+        elseif ~isempty(open_int_put_ask)
+            open_int_ask = open_int_put_ask; 
+        else
+            disp("Issue: no open interest for ask")
+            open_int_ask=0;
+        end
+        % Bid:
+        open_int_call_bid = spx_df.CallOpenInterest(spx_df.callBid_BSvol == sigma_bid);
+        open_int_put_bid = spx_df.PutOpenInterest(spx_df.putBid_BSvol == sigma_bid);
+        if ~isempty(open_int_call_bid)
+            open_int_bid = open_int_call_bid; 
+        elseif ~isempty(open_int_put_bid)
+            open_int_bid = open_int_put_bid; 
+        else
+            disp("Issue: no open interest for bid")
+            open_int_bid=0;
+        end
+        % Check for more than one value in open_int_ask or open_int_bid
+        if length(open_int_ask) > 1
+            open_int_ask = sum(open_int_ask);
+        end
+        if length(open_int_bid) > 1
+            open_int_bid = sum(open_int_bid);
+        end
+
         % Add the values to the table
-        new_row = {Ti, Kj, kj, sigma_ask,sigma_bid};
+        new_row = {Ti, Kj, kj, sigma_ask,sigma_bid, ...
+            open_int_ask, open_int_bid};
         option_df = [option_df; new_row];
     end
 end
-%% 
+
+option_df.open_interest_weight = (option_df.open_interest_ask + option_df.open_interest_bid)/ ...
+    sum(option_df.open_interest_ask + option_df.open_interest_bid);
+
+%% Solve optimisation problem
 f = @(params) obj_fnc(discountData_df, option_df, params(1), params(2));
 %rho = 0.8467; eps = -0.6887;
 opt_params = fminsearch(f, [0.5, 0.5]);
@@ -101,10 +140,11 @@ function summation = obj_fnc(discountData_df, option_df, eps, rho)
             kj = option_df.logStrike(filter);
             sigma_ask = option_df.sigma_ask(filter);
             sigma_bid = option_df.sigma_bid(filter);
+            weight = option_df.open_interest_weight(filter);
 
-            summation = summation + (max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
+            summation = summation + weight*((max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
                 - sigma_ask^2*Ti)^2 + min(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2;
+                - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2);
         end
     end
 
