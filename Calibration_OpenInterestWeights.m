@@ -110,7 +110,11 @@ rho_opt = opt_params(2)
 calibration_params = table;
 calibration_params.eps = eps_opt;
 calibration_params.rho = rho_opt;
-%writetable(calibration_params, "spx_20220401_calibration_params.csv")
+%writetable(calibration_params, "Calibration_results/spx_20220401_calibration_params.csv")
+%% Save bid-ask spread data 
+% Find target vol, computed as the mid point between the smallest bid-ask spread
+option_df.sigma_target = 0.5*(option_df.sigma_ask + option_df.sigma_bid);
+%writetable(option_df, "Calibration_results/spx_20220401_calibration_bid_ask_spread.csv")
 %% 
 % Define objective function for optimisation problem (calibration)
 % Columns of option_df: TimeToExpiration, Strike, logStrike, sigma_ask, sigma_bid
