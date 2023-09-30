@@ -106,10 +106,12 @@ f = @(params) obj_fnc(discountData_df, option_df, params(1), params(2));
 opt_params = fminsearch(f, [0.5, 0.5]);
 eps_opt = opt_params(1)
 rho_opt = opt_params(2)
+cost = cost_fnc(discountData_df, option_df, eps_opt, rho_opt)
 % Save params in csv file
 calibration_params = table;
 calibration_params.eps = eps_opt;
 calibration_params.rho = rho_opt;
+calibration_params.cost = cost;
 %writetable(calibration_params, "Calibration_results/spx_20220401_calibration_params.csv")
 %% Save bid-ask spread data 
 % Find target vol, computed as the mid point between the smallest bid-ask spread
@@ -153,6 +155,46 @@ function summation = obj_fnc(discountData_df, option_df, eps, rho)
             summation = summation + weight*((max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
                 - sigma_ask^2*Ti)^2 + min(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
                 - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2);
+        end
+    end
+
+end
+
+% Compute the cost without the open weights 
+% (to compare across calibration techniques)
+function summation = cost_fnc(discountData_df, option_df, eps, rho) 
+    % Define constants (S3)
+    gamma1 = 0.238; gamma2 = 0.253; 
+    beta1 = exp(5.18); beta2 = exp(-3);
+    eta = @(eps) 2.016048*exp(eps);
+    
+    % Define functions phi and w
+    phi = @(eta, theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
+        (1+beta2*theta)^(1-gamma1-gamma2));
+    w = @(eta, rho, thetaT, T, k) thetaT/2*(1+rho*phi(eta,thetaT)*k + ...
+        sqrt((phi(eta,thetaT)*k + rho)^2 + (1-rho^2)));
+
+    summation = 0;
+    
+    % [Start with nested loops, then try to make more efficient]
+    %for Ti=discountData_df.T
+    for i = 1:length(discountData_df.T)
+        Ti = discountData_df.T(i);
+        thetaTi = discountData_df.TotImplVar(i);
+        Ks = option_df.Strike(option_df.TimeToExpiration == Ti);
+        %for Kj = spx_df.Strike(spx_df.TimeToExpiration == Ti)
+        for j = 1:length(Ks)
+            Kj = Ks(j);
+            % Filter by Ti and Kj
+            filter = option_df.TimeToExpiration == Ti & ...
+                option_df.Strike == Kj;
+            kj = option_df.logStrike(filter);
+            sigma_ask = option_df.sigma_ask(filter);
+            sigma_bid = option_df.sigma_bid(filter);
+
+            summation = summation + (max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
+                - sigma_ask^2*Ti)^2 + min(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
+                - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2;
         end
     end
 
