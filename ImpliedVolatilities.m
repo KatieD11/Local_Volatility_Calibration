@@ -62,8 +62,31 @@ ylabel("BS implied vol")
 legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI", "Target"])
 title("SPX: maturity " +Tn_days+ " days (2022-4-1)")
 %% Implied variance plot
-
-% Implied variance plot
-
-plot(ks, (SSVI_vols.^2)*(Tn_days/365), "-g", "LineWidth",1);
-
+figure(2)
+for i = 1:length(T_maturities)
+    T_i = T_maturities(i);
+    ks = ks_cellArray{discountData_df.T == T_i};
+    implied_var = (SSVI_vols_cellArray{discountData_df.T == T_i}).^2*T_i;
+    plot(ks, implied_var, "-", "LineWidth",1);
+    hold on
+end
+hold off
+legend(string(T_maturities))
+title("Total implied variance plot, SPX (2022-4-1)")
+xlabel("Log strike")
+ylabel("Total implied variance")
+%% Check subset of the smaller maturities
+T_small = T_maturities(T_maturities < 0.1);
+figure(3)
+for i = 1:length(T_small)
+    T_i = T_small(i);
+    ks = ks_cellArray{discountData_df.T == T_i};
+    implied_var = (SSVI_vols_cellArray{discountData_df.T == T_i}).^2*T_i;
+    plot(ks, implied_var, "-", "LineWidth",1);
+    hold on
+end
+hold off
+legend(string(T_small))
+title("Subset: Total implied variance plot, SPX (2022-4-1)")
+xlabel("Log strike")
+ylabel("Total implied variance")
