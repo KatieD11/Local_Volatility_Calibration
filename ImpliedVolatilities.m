@@ -16,21 +16,38 @@ SSVI_vols_cellArray = {}; % Store arrays of different lengths
 ks_cellArray = {};
 
 T_maturities = discountData_df.T; 
+vol_mapes = zeros(length(T_maturities),1);
 for i = 1:length(T_maturities)
     T_i = T_maturities(i);
-    ks = spx_df.logStrike(spx_df.TimeToExpiration == T_i);
+    %ks = spx_df.logStrike(spx_df.TimeToExpiration == T_i);
+    ks = bid_ask_spread.logStrike(bid_ask_spread.TimeToExpiration == T_i);
     thetaT = discountData_df.TotImplVar(discountData_df.T == T_i);
     SSVI_vols = SSVIimpliedVolatility(thetaT, T_i, ks, ...
             calibration_params.rho, calibration_params.eps);
     % Store arrays
     ks_cellArray{end+1} = ks;
     SSVI_vols_cellArray{end+1} = SSVI_vols;
+    % Calculate RMSE
+    target_vols = bid_ask_spread.sigma_target(bid_ask_spread.TimeToExpiration == T_i);
+    vol_mapes(i) = mape(SSVI_vols, target_vols);
 end
-
+%% Plot MAPEs (Mean absolute percentage errors) vs maturity
+figure(1)
+plot(T_maturities, vol_mapes, "x", "LineWidth",2)
+title("Mean absolute percentage errors of SSVI vols vs target implied vols for different maturities")
+xlabel("Maturity (T)")
+ylabel("MAPE (%)")
+results_errors = table;
+results_errors.T = T_maturities;
+results_errors.mape = vol_mapes;
+%writetable(results_errors, "Calibration_results/spx_20220401_mapes_with_weights.csv")
+%writetable(results_errors, "Calibration_results/spx_20220401_mapes_without_weights.csv")
+%exportgraphics(gcf,'Calibration_results/mapes_with_weights.pdf','ContentType','vector')
+%exportgraphics(gcf,'Calibration_results/mapes_without_weights.pdf','ContentType','vector')
 %% Plot results for a particular maturity T
 % Choose a time to maturity in days
 Tn_days = 90;
-%Tn_days = 105; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
+%Tn_days = 21; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
 
 % Get the time to expiration in days (approx)
 spx_df.T_days = round(spx_df.TimeToExpiration*365);
