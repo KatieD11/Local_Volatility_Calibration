@@ -108,7 +108,7 @@ optionData.PutOpenInterest = spx_df_trim.OpenInterest_1;
 filter = ((abs(optionData.logStrike)./sqrt(optionData.TotalImplVar)) > 3.5);
 filtered_optionData = optionData(~filter,:);
 
-%writetable(filtered_optionData, "Data/spx_quotedata20220401_filtered_optionData.csv")
+%writetable(filtered_optionData, "Data/spx_20220401_filtered_optionData.csv")
 %% Create discountData table
 % Create a table with discount factors, TotalImplVar, and discount rates
 discountData = table;
@@ -117,7 +117,7 @@ discountData.BT = BT;
 discountData.QT = QT;
 discountData.TotImplVar = total_impl_vars;
 discountData.rT = rT;
-%writetable(discountData, "Data/spx_quotedata20220401_discountData.csv")
+%writetable(discountData, "Data/spx_20220401_discountData.csv")
 %% Add BS implied vols to filtered option data
 % Find BS implied vols for the bid/ask calls and puts
 l = length(filtered_optionData.TimeToExpiration);
@@ -146,4 +146,4 @@ for i = 1: l
     filtered_optionData.putAsk_BSvol(i) = fminsearch(@(BSvol) abs(BSput(T,K,S0,BSvol,QT, BT) ...
         - filtered_optionData.PutAskPrice(i)),0.1,options); 
 end
-%writetable(filtered_optionData, "Data/spx_quotedata20220401_filtered_optionDataWithImplVol.csv")
+%writetable(filtered_optionData, "Data/spx_20220401_filtered_optionDataWithImplVol.csv")

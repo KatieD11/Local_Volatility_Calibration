@@ -112,7 +112,7 @@ calibration_params = table;
 calibration_params.eps = eps_opt;
 calibration_params.rho = rho_opt;
 calibration_params.cost = cost;
-%writetable(calibration_params, "Calibration_results/spx_20220401_calibration_params.csv")
+%writetable(calibration_params, "Calibration_results/spx_20220401_calibration_params_with_weights.csv")
 %% Save bid-ask spread data 
 % Find target vol, computed as the mid point between the smallest bid-ask spread
 option_df.sigma_target = 0.5*(option_df.sigma_ask + option_df.sigma_bid);
