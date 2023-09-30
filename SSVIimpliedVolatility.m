@@ -14,4 +14,15 @@ function impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps)
 
     % Implied volatility
     impliedVol = sqrt(w/T);
+
+    % Conditions for absence of butterfly arbitrage:
+    % i)  θϕ(θ) (1 + |ρ|)  <  4,  for  all  θ  >  0
+    % ii) θϕ(θ)^2  (1 + |ρ|)  ≤  4,  for  all  θ  >  0
+    if (thetaT.*phi(eta,thetaT)*(1+abs(rho)) >= 4)
+        disp("Butterfly arbitrage: condition 1 violated")
+    end
+    if (thetaT.*phi(eta,thetaT).^2*(1+abs(rho)) > 4)
+        disp("Butterfly arbitrage: condition 2 violated")
+    end
+
 end
