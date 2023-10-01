@@ -81,6 +81,7 @@ ylabel("BS implied vol")
 legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI", "Target"])
 title("Implied volatilities for maturity " +Tn_days+ " days, "+ regexprep(dataset,'_',' '))
 %% Implied variance plot
+% For log-strikes in dataset
 figure(3)
 for i = 1:length(T_maturities)
     T_i = T_maturities(i);
@@ -109,3 +110,68 @@ legend(string(T_small))
 title("Subset: Total implied variance plot, "+ regexprep(dataset,'_',' '))
 xlabel("Log strike")
 ylabel("Total implied variance")
+%% Implied variance plot
+% For a fixed set of log-strikes (interpolation and extrapolation)
+k_set = -0.4:0.01:0.4; % set of log-strikes to compute over
+implied_var_est = zeros(length(T_maturities), length(k_set));
+SSVI_vol_est = zeros(length(T_maturities), length(k_set));
+figure(5)
+for i = 1:length(T_maturities)
+    T_i = T_maturities(i);
+    thetaT = discountData_df.TotImplVar(discountData_df.T == T_i);
+    SSVI_vol = SSVIimpliedVolatility(thetaT, T_i, k_set, ...
+            calibration_params.rho, calibration_params.eps);
+    implied_var = SSVI_vol.^2*T_i;
+    implied_var_est(i,:) = implied_var;
+    SSVI_vol_est(i,:) = SSVI_vol;
+    plot(k_set, implied_var, "-", "LineWidth",1);
+    hold on
+end
+hold off
+legend(string(T_maturities))
+title("Total implied variance plot (inter-&extrapolated), "+regexprep(dataset,'_',' '))
+xlabel("Log strike")
+ylabel("Total implied variance")
+
+%% 
+check_crossing(implied_var_est)
+% check_crossing([[1,2,3]; [2,4,6]; [5,3,8]]) %test
+%% Volatility surface
+[T_axis,k_axis] = meshgrid(T_maturities,k_set);
+surf(T_axis,k_axis,SSVI_vol_est')
+%surf(T_axis,k_axis,implied_var_est')
+xlabel("Time to maturity (T)")
+ylabel("log-strike (k)")
+zlabel("SSVI Volatility")
+%% 
+% Check for a crossing on the volatility surface (calendar spread arbitrage)
+% implied_var_matrix: row_i -> set of implied variances for maturity Ti
+% Note: this is just a simple test (only checks adjacent lines)
+function check_crossing(implied_var_matrix)
+    % Flag to check if values increase from row to row (line to line)
+    values_increase = true;
+    
+    % Iterate through the rows (lines)
+    for i = 1:size(implied_var_matrix, 1) - 1
+        current_row = implied_var_matrix(i, :);
+        next_row = implied_var_matrix(i + 1, :);
+        
+        % Check if values increase from row to row
+        if any(current_row > next_row)
+            values_increase = false;
+            break; 
+        end
+    end
+    
+    % Display the result
+    if values_increase
+        disp('No crossings (no calendar spread arbitrage)');
+    else
+        disp('Lines cross (calendar spread arbitrage exists)');
+    end
+
+end
+
+
+
+
