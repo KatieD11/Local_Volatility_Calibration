@@ -1,7 +1,7 @@
-% Test calibration (S5 of project outline)
-% First run SPX_analysis file to get filtered option data and discount
-% data, the run ImpliedVolitility file to get the BS implied vols for the
-% filtered data
+% Calibration (basic version)
+% First run SPX_analysis file and SPX_bid_ask_spread (in Data_prep folder)
+% to get filtered option data (with BS implied vols),
+% discount data, and bid-ask spreads
 clear; clc;
 
 % Select data set

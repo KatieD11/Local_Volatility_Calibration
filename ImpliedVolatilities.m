@@ -8,7 +8,8 @@ addpath('./Data_prep');
 dataset = "spx_20220401";
 %calibration_set = "with_weights";
 %calibration_set = "without_weights";
-calibration_set = "with_free_params";
+%calibration_set = "with_free_params";
+calibration_set = "heston";
 
 spx_df=readtable("Data_prep/Data/"+dataset+"_filtered_optionDataWithImplVol.csv");
 discountData_df=readtable("Data_prep/Data/"+dataset+"_discountData.csv");
@@ -27,10 +28,16 @@ for i = 1:length(T_maturities)
     %ks = spx_df.logStrike(spx_df.TimeToExpiration == T_i);
     ks = bid_ask_spread.logStrike(bid_ask_spread.TimeToExpiration == T_i);
     thetaT = discountData_df.TotImplVar(discountData_df.T == T_i);
-    SSVI_vols = SSVIimpliedVolatility(thetaT, T_i, ks, ...
-            calibration_params.rho, calibration_params.eps, ...
-            calibration_params.gamma1, calibration_params.gamma2, ...
-            calibration_params.beta1, calibration_params.beta2);
+    if (calibration_set == "heston")
+        SSVI_vols = SSVIimpliedVolatility_Heston(thetaT, T_i, ks, ...
+            calibration_params.rho, calibration_params.lambda);
+    else
+        SSVI_vols = SSVIimpliedVolatility(thetaT, T_i, ks, ...
+                calibration_params.rho, calibration_params.eps, ...
+                calibration_params.gamma1, calibration_params.gamma2, ...
+                calibration_params.beta1, calibration_params.beta2);
+    end
+
     % Store arrays
     ks_cellArray{end+1} = ks;
     SSVI_vols_cellArray{end+1} = SSVI_vols;
@@ -52,7 +59,7 @@ exportgraphics(gcf,'Calibration/Calibration_results/'+dataset+'mapes_'+calibrati
 %% Plot results for a particular maturity T
 % Choose a time to maturity in days
 Tn_days = 90;
-%Tn_days = 17; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
+%Tn_days = 259; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
 
 % Get the time to expiration in days (approx)
 spx_df.T_days = round(spx_df.TimeToExpiration*365);
@@ -81,7 +88,11 @@ plot(bid_ask_spread.logStrike(bid_ask_spread.T_days == Tn_days), ...
 hold off
 xlabel("Log strike")
 ylabel("BS implied vol")
-legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI", "Target"])
+if (calibration_set == "heston")
+    legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI (Heston-like)", "Target"])
+else
+    legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI", "Target"])
+end
 title("Implied volatilities for maturity " +Tn_days+ " days, "+ regexprep(dataset,'_',' '))
 %% Implied variance plot
 % For log-strikes in dataset
@@ -122,10 +133,15 @@ figure(5)
 for i = 1:length(T_maturities)
     T_i = T_maturities(i);
     thetaT = discountData_df.TotImplVar(discountData_df.T == T_i);
+    if (calibration_set == "heston")
+        SSVI_vol = SSVIimpliedVolatility_Heston(thetaT, T_i, k_set, ...
+            calibration_params.rho, calibration_params.lambda);
+    else
     SSVI_vol = SSVIimpliedVolatility(thetaT, T_i, k_set, ...
             calibration_params.rho, calibration_params.eps, ...
             calibration_params.gamma1, calibration_params.gamma2, ...
             calibration_params.beta1, calibration_params.beta2);
+    end    
     implied_var = SSVI_vol.^2*T_i;
     implied_var_est(i,:) = implied_var;
     SSVI_vol_est(i,:) = SSVI_vol;
@@ -143,6 +159,7 @@ check_crossing(implied_var_est)
 % check_crossing([[1,2,3]; [2,4,6]; [5,3,8]]) %test
 %% Volatility surface
 [T_axis,k_axis] = meshgrid(T_maturities,k_set);
+%[T_axis,k_axis] = meshgrid(T_maturities,exp(k_set));
 surf(T_axis,k_axis,SSVI_vol_est')
 %surf(T_axis,k_axis,implied_var_est')
 xlabel("Time to maturity (T)")

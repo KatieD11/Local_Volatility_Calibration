@@ -1,4 +1,4 @@
-% Calibration (with weightings for open interest)
+% Calibration using Heston-like surface
 % First run SPX_analysis file and SPX_bid_ask_spread (in Data_prep folder)
 % to get filtered option data (with BS implied vols),
 % discount data, and bid-ask spreads
@@ -18,40 +18,37 @@ option_df =readtable("../Data_prep/Data/"+dataset+"_option_bid_ask_spread.csv");
 S0 = 4545.86;
 %% Solve optimisation problem
 f = @(params) obj_fnc(discountData_df, option_df, params(1), params(2));
-%eps = 0.8467; rho = -0.6887;
-opt_params = fminsearch(f, [0.5, 0.5]);
-eps_opt = opt_params(1)
+%rho = -0.6887;
+%opt_params = fminsearch(f, [0.5, 0.5]);
+lb = [-Inf, -1];
+ub = [Inf, 1];
+opt_params = fmincon(f,[0.5, 0.5],[],[],[],[],lb,ub);
+lambda_opt = opt_params(1)
 rho_opt = opt_params(2)
-cost = cost_fnc(discountData_df, option_df, eps_opt, rho_opt)
+cost = cost_fnc(discountData_df, option_df, lambda_opt, rho_opt)
 % Save params in csv file
 calibration_params = table;
-calibration_params.eps = eps_opt;
+calibration_params.lambda = lambda_opt;
 calibration_params.rho = rho_opt;
-% Store constants used for calibration
-gamma1 = 0.238; gamma2 = 0.253; 
-beta1 = exp(5.18); beta2 = exp(-3);
-calibration_params.gamma1 = gamma1;
-calibration_params.gamma2 = gamma2;
-calibration_params.beta1 = beta1;
-calibration_params.beta2 = beta2;
 % Save cost
 calibration_params.cost = cost;
-writetable(calibration_params, "Calibration_results/"+dataset+"_calibration_params_with_weights.csv")
+writetable(calibration_params, "Calibration_results/"+dataset+"_calibration_params_heston.csv")
 %% 
 % Define objective function for optimisation problem (calibration)
 % Columns of option_df: TimeToExpiration, Strike, logStrike, sigma_ask, sigma_bid
 % Columns of discountData_df: T, BT, QT, TotImplVar, rT
-function summation = obj_fnc(discountData_df, option_df, eps, rho) 
-    % Define constants (S3)
-    gamma1 = 0.238; gamma2 = 0.253; 
-    beta1 = exp(5.18); beta2 = exp(-3);
-    eta = @(eps) 2.016048*exp(eps);
+function summation = obj_fnc(discountData_df, option_df, lambda, rho) 
+    % Check that static arbitrage free condition is met
+    if (lambda < (1+abs(rho))/4)
+        summation = 10^6; % Set cost high
+        return
+    end
     
-    % Define functions phi and w
-    phi = @(eta, theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
-        (1+beta2*theta)^(1-gamma1-gamma2));
-    w = @(eta, rho, thetaT, T, k) thetaT/2*(1+rho*phi(eta,thetaT)*k + ...
-        sqrt((phi(eta,thetaT)*k + rho)^2 + (1-rho^2)));
+    % Define functions phi (Heston) and w
+    phi = @(lambda, theta) 1/(lambda*theta)* ... 
+        (1-(1-exp(-lambda*theta))/(lambda*theta));
+    w = @(lambda, rho, thetaT, T, k) thetaT/2*(1+rho*phi(lambda, thetaT)*k + ...
+        sqrt((phi(lambda,thetaT)*k + rho)^2 + (1-rho^2)));
 
     summation = 0;
     
@@ -72,9 +69,9 @@ function summation = obj_fnc(discountData_df, option_df, eps, rho)
             sigma_bid = option_df.sigma_bid(filter);
             weight = option_df.open_interest_weight(filter);
 
-            summation = summation + weight*((max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_ask^2*Ti)^2 + min(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2);
+            summation = summation + weight*((max(0, w(lambda, rho, thetaTi, Ti, kj) ...
+                - sigma_ask^2*Ti)^2 + min(0, w(lambda, rho, thetaTi, Ti, kj) ...
+                - sigma_bid^2*Ti)^2)/w(lambda, rho, thetaTi, Ti, kj)^2);
         end
     end
 
@@ -82,17 +79,18 @@ end
 
 % Compute the cost without the open weights 
 % (to compare across calibration techniques)
-function summation = cost_fnc(discountData_df, option_df, eps, rho) 
-    % Define constants (S3)
-    gamma1 = 0.238; gamma2 = 0.253; 
-    beta1 = exp(5.18); beta2 = exp(-3);
-    eta = @(eps) 2.016048*exp(eps);
+function summation = cost_fnc(discountData_df, option_df, lambda, rho) 
+    % Check that static arbitrage free condition is met
+    if (lambda < (1+abs(rho))/4)
+        disp("Static arbitrage exists")
+        return
+    end
     
-    % Define functions phi and w
-    phi = @(eta, theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
-        (1+beta2*theta)^(1-gamma1-gamma2));
-    w = @(eta, rho, thetaT, T, k) thetaT/2*(1+rho*phi(eta,thetaT)*k + ...
-        sqrt((phi(eta,thetaT)*k + rho)^2 + (1-rho^2)));
+    % Define functions phi (Heston) and w
+    phi = @(lambda, theta) 1/(lambda*theta)* ... 
+        (1-(1-exp(-lambda*theta))/(lambda*theta));
+    w = @(lambda, rho, thetaT, T, k) thetaT/2*(1+rho*phi(lambda, thetaT)*k + ...
+        sqrt((phi(lambda,thetaT)*k + rho)^2 + (1-rho^2)));
 
     summation = 0;
     
@@ -112,9 +110,9 @@ function summation = cost_fnc(discountData_df, option_df, eps, rho)
             sigma_ask = option_df.sigma_ask(filter);
             sigma_bid = option_df.sigma_bid(filter);
 
-            summation = summation + (max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_ask^2*Ti)^2 + min(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2;
+            summation = summation + (max(0, w(lambda, rho, thetaTi, Ti, kj) ...
+                - sigma_ask^2*Ti)^2 + min(0, w(lambda, rho, thetaTi, Ti, kj) ...
+                - sigma_bid^2*Ti)^2)/w(lambda, rho, thetaTi, Ti, kj)^2;
         end
     end
 
