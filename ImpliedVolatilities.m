@@ -12,8 +12,8 @@ calibration_set = "with_free_params";
 
 spx_df=readtable("Data_prep/Data/"+dataset+"_filtered_optionDataWithImplVol.csv");
 discountData_df=readtable("Data_prep/Data/"+dataset+"_discountData.csv");
-calibration_params=readtable("Calibration_results/"+dataset+"_calibration_params_"+calibration_set+".csv");
-bid_ask_spread=readtable("Calibration_results/"+dataset+"_calibration_bid_ask_spread.csv");
+calibration_params=readtable("Calibration/Calibration_results/"+dataset+"_calibration_params_"+calibration_set+".csv");
+bid_ask_spread=readtable("Data_prep/Data/"+dataset+"_option_bid_ask_spread.csv");
 
 S0 = 4545.86; % spx_20220401
 %% Compute implied vols for all maturities in dataset
@@ -47,8 +47,8 @@ ylabel("MAPE (%)")
 results_errors = table;
 results_errors.T = T_maturities;
 results_errors.mape = vol_mapes;
-writetable(results_errors, "Calibration_results/"+dataset+"_mapes_"+calibration_set+".csv")
-exportgraphics(gcf,'Calibration_results/'+dataset+'mapes_'+calibration_set+'.pdf','ContentType','vector')
+writetable(results_errors, "Calibration/Calibration_results/"+dataset+"_mapes_"+calibration_set+".csv")
+exportgraphics(gcf,'Calibration/Calibration_results/'+dataset+'mapes_'+calibration_set+'.pdf','ContentType','vector')
 %% Plot results for a particular maturity T
 % Choose a time to maturity in days
 Tn_days = 90;
