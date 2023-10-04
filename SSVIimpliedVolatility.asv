@@ -1,7 +1,11 @@
 % Find implied vols using SVI framework
 % impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps)
-function impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps)
+function impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps, gamma1)
     % Define constants (S3)
+     if ~exist('gamma1','var')
+         % If optional params are not set, set them to the default va
+          param3 = 42;
+     end
     gamma1 = 0.238; gamma2 = 0.253; 
     beta1 = exp(5.18); beta2 = exp(-3);
     eta = 2.016048*exp(eps);
@@ -15,9 +19,14 @@ function impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps)
     % Implied volatility
     impliedVol = sqrt(w/T);
 
-    % Check for absence of butterfly arbitrage:
+    % Conditions for absence of butterfly arbitrage:
     % i)  θϕ(θ) (1 + |ρ|)  <  4,  for  all  θ  >  0
     % ii) θϕ(θ)^2  (1 + |ρ|)  ≤  4,  for  all  θ  >  0
-    if (thetaT.*phi(eta,thetaT).*(1+abs(rho)) ) 
+    if (thetaT.*phi(eta,thetaT)*(1+abs(rho)) >= 4)
+        disp("Butterfly arbitrage: condition 1 violated")
+    end
+    if (thetaT.*phi(eta,thetaT).^2*(1+abs(rho)) > 4)
+        disp("Butterfly arbitrage: condition 2 violated")
+    end
 
 end

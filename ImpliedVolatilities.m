@@ -6,8 +6,9 @@ addpath('./Data_prep');
 
 % Select files
 dataset = "spx_20220401";
-calibration_set = "with_weights";
+%calibration_set = "with_weights";
 %calibration_set = "without_weights";
+calibration_set = "with_free_params";
 
 spx_df=readtable("Data_prep/Data/"+dataset+"_filtered_optionDataWithImplVol.csv");
 discountData_df=readtable("Data_prep/Data/"+dataset+"_discountData.csv");
@@ -27,7 +28,9 @@ for i = 1:length(T_maturities)
     ks = bid_ask_spread.logStrike(bid_ask_spread.TimeToExpiration == T_i);
     thetaT = discountData_df.TotImplVar(discountData_df.T == T_i);
     SSVI_vols = SSVIimpliedVolatility(thetaT, T_i, ks, ...
-            calibration_params.rho, calibration_params.eps);
+            calibration_params.rho, calibration_params.eps, ...
+            calibration_params.gamma1, calibration_params.gamma2, ...
+            calibration_params.beta1, calibration_params.beta2);
     % Store arrays
     ks_cellArray{end+1} = ks;
     SSVI_vols_cellArray{end+1} = SSVI_vols;
@@ -49,7 +52,7 @@ exportgraphics(gcf,'Calibration_results/'+dataset+'mapes_'+calibration_set+'.pdf
 %% Plot results for a particular maturity T
 % Choose a time to maturity in days
 Tn_days = 90;
-%Tn_days = 21; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
+%Tn_days = 17; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
 
 % Get the time to expiration in days (approx)
 spx_df.T_days = round(spx_df.TimeToExpiration*365);
@@ -120,7 +123,9 @@ for i = 1:length(T_maturities)
     T_i = T_maturities(i);
     thetaT = discountData_df.TotImplVar(discountData_df.T == T_i);
     SSVI_vol = SSVIimpliedVolatility(thetaT, T_i, k_set, ...
-            calibration_params.rho, calibration_params.eps);
+            calibration_params.rho, calibration_params.eps, ...
+            calibration_params.gamma1, calibration_params.gamma2, ...
+            calibration_params.beta1, calibration_params.beta2);
     implied_var = SSVI_vol.^2*T_i;
     implied_var_est(i,:) = implied_var;
     SSVI_vol_est(i,:) = SSVI_vol;

@@ -6,9 +6,9 @@ clear; clc;
 addpath('./Data_prep');
 
 % Filtered dataset with BS implied volatilities
-spx_df=readtable("Data_prep/Data/spx_quotedata20220401_filtered_optionDataWithImplVol.csv");
+spx_df=readtable("Data_prep/Data/spx_20220401_filtered_optionDataWithImplVol.csv");
 % Data set with discount factors (BT, QT) and ATM total implied variance
-discountData_df=readtable("Data_prep/Data/spx_quotedata20220401_discountData.csv");
+discountData_df=readtable("Data_prep/Data/spx_20220401_discountData.csv");
 
 S0 = 4545.86;
 
@@ -63,7 +63,7 @@ for i = 1:length(discountData_df.T)
 end
 %% 
 f = @(params) obj_fnc(discountData_df, option_df, params(1), params(2));
-%rho = 0.8467; eps = -0.6887;
+%eps = 0.8467; rho = -0.6887;
 opt_params = fminsearch(f, [0.5, 0.5]);
 eps_opt = opt_params(1)
 rho_opt = opt_params(2)
@@ -72,8 +72,16 @@ cost = obj_fnc(discountData_df, option_df, eps_opt, rho_opt)
 calibration_params = table;
 calibration_params.eps = eps_opt;
 calibration_params.rho = rho_opt;
+% Store constants used for calibration
+gamma1 = 0.238; gamma2 = 0.253; 
+beta1 = exp(5.18); beta2 = exp(-3);
+calibration_params.gamma1 = gamma1;
+calibration_params.gamma2 = gamma2;
+calibration_params.beta1 = beta1;
+calibration_params.beta2 = beta2;
+% Save cost
 calibration_params.cost = cost;
-%writetable(calibration_params, "Calibration_results/spx_20220401_calibration_params_without_weights.csv")
+writetable(calibration_params, "Calibration_results/spx_20220401_calibration_params_without_weights.csv")
 %% 
 % Define objective function for optimisation problem (calibration)
 % Columns of option_df: TimeToExpiration, Strike, logStrike, sigma_ask, sigma_bid

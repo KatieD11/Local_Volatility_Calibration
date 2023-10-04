@@ -1,4 +1,4 @@
-% Test calibration (S5 of project outline)
+% Calibration with extra free parameter variables
 % First run SPX_analysis file to get filtered option data and discount
 % data, the run ImpliedVolitility file to get the BS implied vols for the
 % filtered data
@@ -101,26 +101,39 @@ option_df.open_interest_weight = (option_df.open_interest_ask + option_df.open_i
     sum(option_df.open_interest_ask + option_df.open_interest_bid);
 
 %% Solve optimisation problem
-f = @(params) obj_fnc(discountData_df, option_df, params(1), params(2));
+f = @(params) obj_fnc(discountData_df, option_df, ...
+    params(1), params(2), params(3), params(4));
 %eps = 0.8467; rho = -0.6887;
-opt_params = fminsearch(f, [0.5, 0.5]);
+%opt_params = fminsearch(f, [0.5, 0.5]);
+lb = [-1, -1, 0, 0];
+ub = [1, 1, 0.49, 0.49];
+opt_params = fmincon(f,[0.5, 0.5, 0.2, 0.2],[],[],[],[],lb,ub)
 eps_opt = opt_params(1)
 rho_opt = opt_params(2)
-cost = cost_fnc(discountData_df, option_df, eps_opt, rho_opt)
+gamma1_opt = opt_params(3)
+gamma2_opt = opt_params(4)
+cost = cost_fnc(discountData_df, option_df, eps_opt, rho_opt, ...
+    gamma1_opt, gamma2_opt)
 % Save params in csv file
 calibration_params = table;
 calibration_params.eps = eps_opt;
 calibration_params.rho = rho_opt;
+calibration_params.gamma1 = gamma1_opt;
+calibration_params.gamma2 = gamma2_opt;
 % Store constants used for calibration
-gamma1 = 0.238; gamma2 = 0.253; 
 beta1 = exp(5.18); beta2 = exp(-3);
-calibration_params.gamma1 = gamma1;
-calibration_params.gamma2 = gamma2;
 calibration_params.beta1 = beta1;
 calibration_params.beta2 = beta2;
 % Save cost
 calibration_params.cost = cost;
-writetable(calibration_params, "Calibration_results/spx_20220401_calibration_params_with_weights.csv")
+writetable(calibration_params, "Calibration_results/spx_20220401_calibration_params_with_free_params.csv")
+%% 
+% gs = GlobalSearch;
+% sixmin = @(x)(4*x(1)^2 - 2.1*x(1)^4 + x(1)^6/3 ...
+%     + x(1)*x(2) - 4*x(2)^2 + 4*x(2)^4);
+% problem = createOptimProblem('fmincon','x0',[-1,2],...
+%     'objective',sixmin,'lb',[-3,-3],'ub',[3,3]);
+% x = run(gs,problem)
 %% Save bid-ask spread data 
 % Find target vol, computed as the mid point between the smallest bid-ask spread
 option_df.sigma_target = 0.5*(option_df.sigma_ask + option_df.sigma_bid);
@@ -129,9 +142,10 @@ option_df.sigma_target = 0.5*(option_df.sigma_ask + option_df.sigma_bid);
 % Define objective function for optimisation problem (calibration)
 % Columns of option_df: TimeToExpiration, Strike, logStrike, sigma_ask, sigma_bid
 % Columns of discountData_df: T, BT, QT, TotImplVar, rT
-function summation = obj_fnc(discountData_df, option_df, eps, rho) 
+function summation = obj_fnc(discountData_df, option_df, eps, rho, ...
+    gamma1, gamma2) 
     % Define constants (S3)
-    gamma1 = 0.238; gamma2 = 0.253; 
+    %gamma1 = 0.238; gamma2 = 0.253; 
     beta1 = exp(5.18); beta2 = exp(-3);
     eta = @(eps) 2.016048*exp(eps);
     
@@ -170,9 +184,10 @@ end
 
 % Compute the cost without the open weights 
 % (to compare across calibration techniques)
-function summation = cost_fnc(discountData_df, option_df, eps, rho) 
+function summation = cost_fnc(discountData_df, option_df, eps, rho, ...
+    gamma1, gamma2) 
     % Define constants (S3)
-    gamma1 = 0.238; gamma2 = 0.253; 
+    %gamma1 = 0.238; gamma2 = 0.253; 
     beta1 = exp(5.18); beta2 = exp(-3);
     eta = @(eps) 2.016048*exp(eps);
     

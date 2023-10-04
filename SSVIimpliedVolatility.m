@@ -1,9 +1,8 @@
 % Find implied vols using SVI framework
-% impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps)
-function impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps)
-    % Define constants (S3)
-    gamma1 = 0.238; gamma2 = 0.253; 
-    beta1 = exp(5.18); beta2 = exp(-3);
+% impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps, gamma1, gamma2, beta1, beta2)
+function impliedVol = SSVIimpliedVolatility(thetaT, T, k, rho, eps, ...
+    gamma1, gamma2, beta1, beta2)
+    % Define eta
     eta = 2.016048*exp(eps);
     
     % Define phi and w (for given thetaT, T, k)
