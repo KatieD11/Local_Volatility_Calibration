@@ -22,7 +22,7 @@ f = @(params) obj_fnc(discountData_df, option_df, ...
 %eps = 0.8467; rho = -0.6887;
 %opt_params = fminsearch(f, [0.5, 0.5]);
 lb = [-1, -1, 0, 0, 0, 0];
-ub = [1, 1, 0.49, 0.49, Inf, Inf];
+ub = [1, 1, 0.5, 0.5, Inf, Inf];
 opt_params = fmincon(f,[0.5, 0.5, 0.2, 0.2, exp(5.18), exp(-3)],[],[],[],[],lb,ub)
 eps_opt = opt_params(1)
 rho_opt = opt_params(2)
@@ -59,13 +59,13 @@ function summation = obj_fnc(discountData_df, option_df, eps, rho, ...
     % Define constants (S3)
     %gamma1 = 0.238; gamma2 = 0.253; 
     %beta1 = exp(5.18); beta2 = exp(-3);
-    eta = @(eps) 2.016048*exp(eps);
+    eta = 2.016048*exp(eps);
     
     % Define functions phi and w
-    phi = @(eta, theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
+    phi = @(theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
         (1+beta2*theta)^(1-gamma1-gamma2));
-    w = @(eta, rho, thetaT, T, k) thetaT/2*(1+rho*phi(eta,thetaT)*k + ...
-        sqrt((phi(eta,thetaT)*k + rho)^2 + (1-rho^2)));
+    w = @( thetaT, T, k) thetaT/2*(1+rho*phi(thetaT)*k + ...
+        sqrt((phi(thetaT)*k + rho)^2 + (1-rho^2)));
 
     summation = 0;
     
@@ -86,9 +86,9 @@ function summation = obj_fnc(discountData_df, option_df, eps, rho, ...
             sigma_bid = option_df.sigma_bid(filter);
             weight = option_df.open_interest_weight(filter);
 
-            summation = summation + weight*((max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_ask^2*Ti)^2 + min(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2);
+            summation = summation + weight*((max(0, w(thetaTi, Ti, kj) ...
+                - sigma_ask^2*Ti)^2 + min(0, w(thetaTi, Ti, kj) ...
+                - sigma_bid^2*Ti)^2)/w(thetaTi, Ti, kj)^2);
         end
     end
 
@@ -101,13 +101,13 @@ function summation = cost_fnc(discountData_df, option_df, eps, rho, ...
     % Define constants (S3)
     %gamma1 = 0.238; gamma2 = 0.253; 
     %beta1 = exp(5.18); beta2 = exp(-3);
-    eta = @(eps) 2.016048*exp(eps);
+    eta = 2.016048*exp(eps);
     
     % Define functions phi and w
-    phi = @(eta, theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
+    phi = @(theta) eta/(theta^gamma1*(1+beta1*theta)^gamma2* ...
         (1+beta2*theta)^(1-gamma1-gamma2));
-    w = @(eta, rho, thetaT, T, k) thetaT/2*(1+rho*phi(eta,thetaT)*k + ...
-        sqrt((phi(eta,thetaT)*k + rho)^2 + (1-rho^2)));
+    w = @(thetaT, T, k) thetaT/2*(1+rho*phi(thetaT)*k + ...
+        sqrt((phi(thetaT)*k + rho)^2 + (1-rho^2)));
 
     summation = 0;
     
@@ -127,9 +127,9 @@ function summation = cost_fnc(discountData_df, option_df, eps, rho, ...
             sigma_ask = option_df.sigma_ask(filter);
             sigma_bid = option_df.sigma_bid(filter);
 
-            summation = summation + (max(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_ask^2*Ti)^2 + min(0, w(eta(eps), rho, thetaTi, Ti, kj) ...
-                - sigma_bid^2*Ti)^2)/w(eta(eps), rho, thetaTi, Ti, kj)^2;
+            summation = summation + (max(0, w(thetaTi, Ti, kj) ...
+                - sigma_ask^2*Ti)^2 + min(0, w(thetaTi, Ti, kj) ...
+                - sigma_bid^2*Ti)^2)/w(thetaTi, Ti, kj)^2;
         end
     end
 

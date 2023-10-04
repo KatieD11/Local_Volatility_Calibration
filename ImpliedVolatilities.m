@@ -9,7 +9,8 @@ dataset = "spx_20220401";
 %calibration_set = "with_weights";
 %calibration_set = "without_weights";
 %calibration_set = "with_free_params";
-calibration_set = "heston";
+%calibration_set = "heston";
+calibration_set = "powerLaw";
 
 spx_df=readtable("Data_prep/Data/"+dataset+"_filtered_optionDataWithImplVol.csv");
 discountData_df=readtable("Data_prep/Data/"+dataset+"_discountData.csv");
@@ -31,6 +32,10 @@ for i = 1:length(T_maturities)
     if (calibration_set == "heston")
         SSVI_vols = SSVIimpliedVolatility_Heston(thetaT, T_i, ks, ...
             calibration_params.rho, calibration_params.lambda);
+    elseif (calibration_set == "powerLaw")
+        SSVI_vols = SSVIimpliedVolatility_PowerLaw(thetaT, T_i, ks, ...
+            calibration_params.rho, calibration_params.eta, ...
+            calibration_params.gamma);        
     else
         SSVI_vols = SSVIimpliedVolatility(thetaT, T_i, ks, ...
                 calibration_params.rho, calibration_params.eps, ...
@@ -45,6 +50,7 @@ for i = 1:length(T_maturities)
     target_vols = bid_ask_spread.sigma_target(bid_ask_spread.TimeToExpiration == T_i);
     vol_mapes(i) = mape(SSVI_vols, target_vols);
 end
+save("Calibration/Calibration_results/"+dataset+"_SSVIimpliedVols_"+calibration_set+".mat", 'SSVI_vols_cellArray');
 %% Plot MAPEs (Mean absolute percentage errors) vs maturity
 figure(1)
 plot(T_maturities, vol_mapes, "x", "LineWidth",2)
@@ -90,6 +96,8 @@ xlabel("Log strike")
 ylabel("BS implied vol")
 if (calibration_set == "heston")
     legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI (Heston-like)", "Target"])
+elseif (calibration_set == "powerLaw")
+    legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI (power-law)", "Target"])
 else
     legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI", "Target"])
 end
@@ -136,6 +144,10 @@ for i = 1:length(T_maturities)
     if (calibration_set == "heston")
         SSVI_vol = SSVIimpliedVolatility_Heston(thetaT, T_i, k_set, ...
             calibration_params.rho, calibration_params.lambda);
+    elseif (calibration_set == "powerLaw")
+        SSVI_vol = SSVIimpliedVolatility_PowerLaw(thetaT, T_i, k_set, ...
+            calibration_params.rho, calibration_params.eta, ...
+            calibration_params.gamma);        
     else
     SSVI_vol = SSVIimpliedVolatility(thetaT, T_i, k_set, ...
             calibration_params.rho, calibration_params.eps, ...
