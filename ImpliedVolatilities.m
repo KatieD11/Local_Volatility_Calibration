@@ -171,7 +171,6 @@ check_crossing(implied_var_est)
 % check_crossing([[1,2,3]; [2,4,6]; [5,3,8]]) %test
 %% Volatility surface
 [T_axis,k_axis] = meshgrid(T_maturities,k_set);
-%[T_axis,k_axis] = meshgrid(T_maturities,exp(k_set));
 surf(T_axis,k_axis,SSVI_vol_est')
 %surf(T_axis,k_axis,implied_var_est')
 xlabel("Time to maturity (T)")
