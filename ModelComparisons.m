@@ -69,7 +69,16 @@ mapes_powerLaw=readtable("Calibration/Calibration_results/"+dataset+"_mapes_powe
 
 T_maturities = mapes_withWeights.T;
 
+% Compute the total open interest weight for each maturity
+total_open_int_weight = zeros(length(T_maturities),1);
+for i=1:length(T_maturities)
+    Ti = T_maturities(i);
+    total_open_int_weight(i) = sum(bid_ask_spread.open_interest_weight(...
+        bid_ask_spread.TimeToExpiration == Ti));
+end
+
 figure(2)
+% MAPEs plots
 plot(T_maturities, mapes_withWeights.mape, "xg", "LineWidth",2)
 hold on
 plot(T_maturities, mapes_freeParams.mape, "xr", "LineWidth",2)
@@ -77,10 +86,18 @@ hold on
 plot(T_maturities, mapes_heston.mape, "xb", "LineWidth",2)
 hold on
 plot(T_maturities, mapes_powerLaw.mape, "xm", "LineWidth",2)
+hold on
+ylabel("MAPE (%)")
+% Open interest weight plot
+yyaxis right;
+bar(T_maturities, total_open_int_weight*100, 'FaceColor', ...
+    [0.5, 0.5, 0.5], 'EdgeColor',[0.5, 0.5, 0.5], ...
+    'FaceAlpha', 0.2, 'EdgeAlpha', 0.5)
 hold off
 title("Mean absolute percentage errors of SSVI vols vs target implied vols")
 xlabel("Maturity (T)")
-ylabel("MAPE (%)")
+ylabel("Open interest weight (%)")
+set(gca, 'ycolor', [0.5, 0.5, 0.5]);  % Set y-axis color to gray
 legend(["SSVI (with weights)", "SSVI (free parameters)", ...
     "SSVI (heston-like)", "SSVI (power-law)"])
 
