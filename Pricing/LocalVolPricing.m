@@ -98,6 +98,7 @@ r = @(T) interp1(discountData_df.T,discountData_df.rT,T);
 q = @(T) interp1(discountData_df.T,discountData_df.qT,T);
 F = @(T) interp1(discountData_df.T,discountData_df.FT,T);
 B = @(T) interp1(discountData_df.T,discountData_df.BT,T); %DF
+Q = @(T) interp1(discountData_df.T,discountData_df.QT,T); %DF
 
 % Compute K given a log-strike k(T) and k given K
 K = @(k, T) F(T).*exp(k);
@@ -108,30 +109,54 @@ k = @(K,T) log(K./F(T));
 % MC parameters
 Ks = spx_df.Strike(spx_df.T_days == Tn_days); % strikes in data set
 %M = 100; % # time-steps
-M = 5;
-dt = T/M;
-t = dt:dt:T;
+% M = 5;
+% dt = T/M;
+% t = dt:dt:T;
 n = 50000; % # MC simulations
 
+% Stock price path parameters
+M = 20;
+m=0:(M-1);
+%t_start = min(discountData_df.T);
+t_start =0.048;
+t = t_start + m*(T-t_start)/M;
+dt = t(1:end) - [0, t(1:end-1)];
+
+r_ave = r(T); q_ave = q(T);
+ 
 % Estimate prices for each strike at maturity
 p_hat = zeros(length(Ks),1);
 p_mkt = zeros(length(Ks),1);
 for i = 1: length(Ks)
     ki = k(Ks(i),T); % log-strike
     % Approximate time-average of local_vol^2
-    local_vari = @(T) local_var(ki,T);
-    %ave_local_var = 1/T * integral(local_vari,0,T)
-    N = 2000;
-    %ave_local_var = AveLocalVar(local_vari,T,N)
-    ave_local_var = local_var(ki,T); % Test just using terminal vol
+%     local_vari = @(T) local_var(ki,T);
+%     %ave_local_var = 1/T * integral(local_vari,0,T)
+%     N = 2000;
+%     %ave_local_var = AveLocalVar(local_vari,T,N)
+%     ave_local_var = local_var(ki,T); % Test just using terminal vol
+% 
+%     % Terminal stock values
+%     Z = randn(1,n);
+%     Si = S0*exp((r(T)-q(T)-0.5*ave_local_var)'*T + ...
+%         sqrt(ave_local_var)'.*sqrt(T).*Z);
 
-    % Terminal stock values
-    Z = randn(1,n);
-    Si = S0*exp((r(T)-q(T)-0.5*ave_local_var)'*T + ...
-        sqrt(ave_local_var)'.*sqrt(T).*Z);
+    % Stock price paths
+    St = S0;
+    for j = 1:M
+        dtj = dt(j);
+        Wt = sqrt(dtj) * randn(1,n);
+        
+        % Local_vol^2 at t, St      
+        var_t = local_var(k(St,t(j)),t(j));
+        
+        % Update the stock price using the risk-neutral dynamics
+        St = St .* exp((r_ave - q_ave - 0.5*var_t) * dtj + sqrt(var_t) .* sqrt(dtj) .* Wt);
+    end    
     
     % Discounted payoff function
-    f_put = B(T)*max(Ks(i)-Si,0);
+    %f_put = B(T)*max(Ks(i)-Si,0);
+    f_put = B(T)*max(Ks(i)-St,0);
     % Price estimate
     p_hat(i) = mean(f_put); 
 
@@ -157,9 +182,10 @@ BT = discountData_df.BT(discountData_df.T_days == Tn_days);
 p_BSvol = zeros(length(p_hat),1);
 for i = 1:length(p_hat)
     p_BSvol(i) = fzero(@(BSvol) BSput(T,Ks(i),S0,BSvol,QT, BT) - p_hat(i),0.1); 
+    BSput(T,Ks(i),S0,p_BSvol(i),QT, BT)
 end
 
-k_set2 = k(Ks,T);
+ks = k(Ks,T);
 
 filter = spx_df.T_days == Tn_days;
 figure(3)
@@ -177,7 +203,7 @@ plot(bid_ask_spread.logStrike(bid_ask_spread.T_days == Tn_days), ...
     bid_ask_spread.sigma_target(bid_ask_spread.T_days== Tn_days), ...
     "-c", "LineWidth",1);
 hold on
-plot(k_set2, p_BSvol, "x", "LineWidth",1);
+plot(ks, p_BSvol, "x", "LineWidth",1);
 hold off
 xlabel("Log strike")
 ylabel("BS implied vol")
