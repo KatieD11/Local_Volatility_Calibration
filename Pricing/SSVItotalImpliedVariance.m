@@ -7,7 +7,23 @@ function w = SSVItotalImpliedVariance(discountData_df, T, k, rho, eps, ...
     eta = 2.016048*exp(eps);
 
     % Find thetaT
-    thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T);
+%     if (T< min(discountData_df.T) || T > max(discountData_df.T))
+%         thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T, 'linear', 'extrap');
+%         thetaT = max(thetaT,0.01);
+%     else
+%         thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T);
+%     end
+
+%     thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T);
+%     if isnan(thetaT)
+%         thetaT = min(discountData_df.TotImplVar);
+%     end
+
+    if (T< min(discountData_df.T))
+        thetaT = min(discountData_df.TotImplVar);
+    else
+        thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T);
+    end
 
     % Define phi and w (for given thetaT, T, k)
     phi = @(eta, theta) eta./(theta.^gamma1.*(1+beta1.*theta).^gamma2.* ...

@@ -38,7 +38,8 @@ local_var = @(k,T) dwdT(k, T)./(1 - k./w(k,T) .* dwdk(k, T) + ...
 
 %% Test: Plot results for a particular maturity T
 % Choose a time to maturity in days
-Tn_days = 90; T = (Tn_days-0)/365;
+Tn_days = 90; % 17; % 60; % 35; %21;
+T = (Tn_days-0)/365;
 %Tn_days = 259; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
 
 % Calculate SSVI implied vols & local vols
@@ -84,9 +85,8 @@ legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI", "Target", "Local v
 title("Implied volatilities for maturity " +Tn_days+ " days, "+ regexprep(dataset,'_',' '))
 %% MC Pricing
 % Choose a time to maturity in days
-Tn_days = 90; 
-%Tn_days = 140; 
-T = Tn_days/365;
+%Tn_days = 90; % 17, 21, 140;
+%T = Tn_days/365;
 
 % Approximate qT (from QT) as average dividend yield over the period
 discountData_df.qT = -log(discountData_df.QT)./discountData_df.T;
@@ -108,17 +108,12 @@ k = @(K,T) log(K./F(T));
 
 % MC parameters
 Ks = spx_df.Strike(spx_df.T_days == Tn_days); % strikes in data set
-%M = 100; % # time-steps
-% M = 5;
-% dt = T/M;
-% t = dt:dt:T;
 n = 50000; % # MC simulations
 
 % Stock price path parameters
 M = 20;
 m=0:(M-1);
-%t_start = min(discountData_df.T);
-t_start =0.048;
+t_start = min(discountData_df.T) + dT;
 t = t_start + m*(T-t_start)/M;
 dt = t(1:end) - [0, t(1:end-1)];
 
@@ -128,20 +123,27 @@ r_ave = r(T); q_ave = q(T);
 p_hat = zeros(length(Ks),1);
 p_mkt = zeros(length(Ks),1);
 for i = 1: length(Ks)
-    ki = k(Ks(i),T); % log-strike
-    % Approximate time-average of local_vol^2
-%     local_vari = @(T) local_var(ki,T);
-%     %ave_local_var = 1/T * integral(local_vari,0,T)
-%     N = 2000;
-%     %ave_local_var = AveLocalVar(local_vari,T,N)
-%     ave_local_var = local_var(ki,T); % Test just using terminal vol
-% 
-%     % Terminal stock values
-%     Z = randn(1,n);
-%     Si = S0*exp((r(T)-q(T)-0.5*ave_local_var)'*T + ...
-%         sqrt(ave_local_var)'.*sqrt(T).*Z);
+    % Exceptional case for the smallest maturity in the dataset
+    % (Don't use a stock path)
+    if T < t_start
+        ki = k(Ks(i),T); % log-strike
+        var_T = local_var(ki,T);
+        Z = randn(1,n);
+        ST = S0*exp((r(T)-q(T)-0.5*var_T)'*T + ...
+            sqrt(var_T)'.*sqrt(T).*Z); 
+        
+        % Discounted payoff function
+        f_put = B(T)*max(Ks(i)-ST,0);
 
-    % Stock price paths
+        % Price estimate
+        p_hat(i) = mean(f_put); 
+    
+        % Store corresponding market price
+        p_mkt(i) = mean(spx_df.PutMktPrice(spx_df.Strike == Ks(i) & spx_df.T_days == Tn_days));
+        continue
+    end
+
+    % When T > t_start, simulate stock price paths
     St = S0;
     for j = 1:M
         dtj = dt(j);
@@ -151,11 +153,10 @@ for i = 1: length(Ks)
         var_t = local_var(k(St,t(j)),t(j));
         
         % Update the stock price using the risk-neutral dynamics
-        St = St .* exp((r_ave - q_ave - 0.5*var_t) * dtj + sqrt(var_t) .* sqrt(dtj) .* Wt);
+        St = St .* exp((r_ave - q_ave - 0.5*var_t) * dtj + sqrt(var_t) .* Wt);
     end    
     
     % Discounted payoff function
-    %f_put = B(T)*max(Ks(i)-Si,0);
     f_put = B(T)*max(Ks(i)-St,0);
     % Price estimate
     p_hat(i) = mean(f_put); 
@@ -174,15 +175,14 @@ xlabel("Strike (K)")
 ylabel("Put price")
 legend(["MC estimates", "Market values"])
 %% Reverse pricing to get BS implied vols
-% Find Black-Scholes implied volatilities (using interpolated prices)
-%call_BSvol = fzero(@(BSvol) BScall(Ti,Ki,S0,BSvol,QT, BT) - call_i,0.1);
+% Find Black-Scholes implied volatilities (from MC price estimates)
 QT = discountData_df.QT(discountData_df.T_days == Tn_days);
 BT = discountData_df.BT(discountData_df.T_days == Tn_days);
 
 p_BSvol = zeros(length(p_hat),1);
 for i = 1:length(p_hat)
+    %call_BSvol = fzero(@(BSvol) BScall(Ti,Ki,S0,BSvol,QT, BT) - call_i,0.1);
     p_BSvol(i) = fzero(@(BSvol) BSput(T,Ks(i),S0,BSvol,QT, BT) - p_hat(i),0.1); 
-    BSput(T,Ks(i),S0,p_BSvol(i),QT, BT)
 end
 
 ks = k(Ks,T);
@@ -203,11 +203,11 @@ plot(bid_ask_spread.logStrike(bid_ask_spread.T_days == Tn_days), ...
     bid_ask_spread.sigma_target(bid_ask_spread.T_days== Tn_days), ...
     "-c", "LineWidth",1);
 hold on
-plot(ks, p_BSvol, "x", "LineWidth",1);
+plot(ks, p_BSvol, "xk", "LineWidth",1);
 hold off
 xlabel("Log strike")
 ylabel("BS implied vol")
-legend(["Put bid", "Put ask", "SSVI", "Target", "Put estimates"])
+legend(["Put bid", "Put ask", "SSVI", "Target", "Put MC estimates"])
 title("Implied volatilities for maturity " +Tn_days+ " days, "+ regexprep(dataset,'_',' '))
 
 %% 
