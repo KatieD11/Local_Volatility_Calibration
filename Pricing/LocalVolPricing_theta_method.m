@@ -25,8 +25,8 @@ w = @(k,T) SSVItotalImpliedVariance(discountData_df, T, k, ...
             calibration_params.beta1, calibration_params.beta2);
 
 % Central finite difference estimates for the partial derivatives
-dT=0.001; dk=0.001;
-%dT=0.0001; dk=0.0001;
+%dT=0.001; dk=0.001;
+dT=0.001/100; dk=0.001*10;
 dwdT = @(k, T) (w(k, T+dT) - w(k, T-dT))/(2*dT);
 dwdk = @(k, T) (w(k+dk, T) - w(k-dk, T))/(2*dk);
 d2wdk2 = @(k, T) (w(k+2*dk, T) - 2*w(k, T) + w(k-2*dk, T))/(4*dk^2);
@@ -82,7 +82,7 @@ xlabel("Log strike")
 ylabel("BS implied vol")
 legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI", "Target", "Local vol"])
 title("Implied volatilities for maturity " +Tn_days+ " days, "+ regexprep(dataset,'_',' '))
-%% MC Pricing
+%% Pricing using theta method
 % Choose a time to maturity in days
 Tn_days = 90; 
 %Tn_days = 140; 
@@ -94,50 +94,116 @@ discountData_df.qT = -log(discountData_df.QT)./discountData_df.T;
 discountData_df.FT = S0*(discountData_df.QT)./(discountData_df.BT);
 
 % Use interpolation to estimate r(T), q(T), FT, BT for maturities not in the data set
-r = @(T) interp1(discountData_df.T,discountData_df.rT,T);
-q = @(T) interp1(discountData_df.T,discountData_df.qT,T);
-F = @(T) interp1(discountData_df.T,discountData_df.FT,T);
-B = @(T) interp1(discountData_df.T,discountData_df.BT,T); %DF
+r_fnc = @(T) interp1(discountData_df.T,discountData_df.rT,T);
+q_fnc = @(T) interp1(discountData_df.T,discountData_df.qT,T);
+F_fnc = @(T) interp1(discountData_df.T,discountData_df.FT,T);
+B_fnc = @(T) interp1(discountData_df.T,discountData_df.BT,T); %DF
 
 % Compute K given a log-strike k(T) and k given K
-K = @(k, T) F(T).*exp(k);
-k = @(K,T) log(K./F(T));
+K_fnc = @(k, T) F_fnc(T).*exp(k);
+k_fnc = @(K,T) log(K./F_fnc(T));
 
-% Use MC simulation to estimate put option prices
+% Use theta-method to estimate put option prices
 
-% MC parameters
+% Option related parameters
 Ks = spx_df.Strike(spx_df.T_days == Tn_days); % strikes in data set
-%M = 100; % # time-steps
-M = 5;
-dt = T/M;
-t = dt:dt:T;
-n = 50000; % # MC simulations
+K = Ks(40); % Select a strike to compute option value for
+%K = Ks(150);
+r_ave = r_fnc(T);
+q_ave = q_fnc(T);
 
-% Estimate prices for each strike at maturity
-p_hat = zeros(length(Ks),1);
-p_mkt = zeros(length(Ks),1);
-for i = 1: length(Ks)
-    ki = k(Ks(i),T); % log-strike
-    % Approximate time-average of local_vol^2
-    local_vari = @(T) local_var(ki,T);
-    %ave_local_var = 1/T * integral(local_vari,0,T)
-    N = 2000;
-    %ave_local_var = AveLocalVar(local_vari,T,N)
-    ave_local_var = local_var(ki,T); % Test just using terminal vol
+% Mesh related parameters
+Smin=S0*0.8; Smax=S0*1.2; 
+%M=80; N=160; 
+M=5; N=100; % local var doesn't work for too many time steps
+theta=0.5;
+dS=(Smax - Smin)/N;
+n=1:(N-1);
+dTau=T/M;
+m=0:M;
 
-    % Terminal stock values
-    Z = randn(1,n);
-    Si = S0*exp((r(T)-q(T)-0.5*ave_local_var)'*T + ...
-        sqrt(ave_local_var)'.*sqrt(T).*Z);
-    
-    % Discounted payoff function
-    f_put = B(T)*max(Ks(i)-Si,0);
-    % Price estimate
-    p_hat(i) = mean(f_put); 
+% tstart = 0.05;
+% M = 5;
+% dTau=(T-tstart)/M;
+% m=0:M;
 
-    % Store corresponding market price
-    p_mkt(i) = mean(spx_df.PutMktPrice(spx_df.Strike == Ks(i) & spx_df.T_days == Tn_days));
+% Compute the log equivalents of S-values (to use in local vol fnc)
+s_min = k_fnc(Smin,T); s_max = k_fnc(Smax,T);
+ds = k_fnc(dS,T);
+
+% Initial condition
+Uinit = @(S) max(K-S,0); % Terminal condition (reverse time transformation)
+% Boundary conditions
+U0 = @(S,tau) K*exp(-(r_ave-q_ave)*tau) - S;
+Uinf = @(S,tau) 0; 
+
+% Theta method:
+% Create matrices
+D1 = diag(Smin/dS + (1:N-1));
+D2 = D1^2;
+T1 = diag(ones(N-2,1), 1) - diag(ones(N-2,1), -1);
+T2 = diag(ones(N-2,1), 1) + diag(ones(N-2,1), -1) - ...
+    2*diag(ones(N-1,1));
+
+% Boundary condition vectors (in (N-1)x(M+1) matrix)
+tm = T - m*dTau;
+%tm = tstart + T - m*dTau;
+b = zeros(N-1, M+1);
+b(1,:) = 0.5*dTau*(Smin/dS+1)*(local_var(s_min+ds,tm).*(Smin/dS+1) ...
+    -(r_ave - q_ave)).*U0(Smin, m*dTau);
+b(end,:) = 0.5*dTau*(Smax/dS-1)*(local_var(s_max-ds,tm).*(Smax/dS-1) ...
+    +(r_ave-q_ave))*Uinf(Smax, m*dTau);
+% Replace NaN values with 0
+b(isnan(b))=0;
+
+% Solution U
+U = zeros(N-1, M+1);
+U(:,1) = Uinit(Smin+n*dS)'; % Initial condition
+
+for i=1:M
+    t = tm(i);
+    % Since local vol fnc is time dependent for this model,
+    % sigma_matrix, Fm and Gm+1 are computed inside the loop
+    %local_var(s_min+(n*ds),tm)
+    sigma_matrix = diag(local_var(s_min+(n*ds),t));
+    if (max(isnan(sigma_matrix),[],'all')==1)
+        disp("Local var is nan at t="+t)
+        %sigma_matrix(isnan(sigma_matrix))=0;
+    end
+    F = (1-(r_ave-q_ave)*dTau)*eye(N-1) + 0.5*(r_ave-q_ave)*dTau*D1*T1 + 0.5*sigma_matrix*dTau*D2*T2;
+    G = (1+(r_ave-q_ave)*dTau)*eye(N-1) - 0.5*(r_ave-q_ave)*dTau*D1*T1 - 0.5*sigma_matrix*dTau*D2*T2;
+
+    U(:,i+1) = (theta*G + (1-theta)*eye(N-1))\ ...
+        (((1-theta)*F + theta*eye(N-1))*U(:,i) + ...
+        (1-theta)*b(:,i) + theta*b(:,i+1));
 end
+
+% Surface plot of the result (in terms of S and tau)
+[tau,Ss] = meshgrid(m*dTau,Smin+(n*dS));
+figure(1);
+surf(tau,Ss,U);
+%t = T-tau;
+%surf(t,Ss,U);
+%xlabel("t")
+xlabel("tau")
+ylabel("S")
+zlabel("V")
+title("Put option pricing surface")
+
+% Price estimate
+U(Ss==S0 & tau==T)
+%U(Ss==S0 & tau==T-tstart)
+spx_df.PutMktPrice(spx_df.T_days == Tn_days & spx_df.Strike == K)
+
+% Plots of prices at t=0
+figure(2)
+plot(Smin+(n*dS), U(tau==T), ".k")
+title("Put price estimates at t=0")
+xlabel("S_0")
+ylabel("Price")
+legend(["Closed form", "Estimate"])
+
+%% 
 
 figure(2)
 plot(Ks, p_hat, ".")
@@ -184,27 +250,3 @@ ylabel("BS implied vol")
 legend(["Put bid", "Put ask", "SSVI", "Target", "Put estimates"])
 title("Implied volatilities for maturity " +Tn_days+ " days, "+ regexprep(dataset,'_',' '))
 
-%% 
-% Numerical integration to estimate average local volatility
-function ave_local_var = AveLocalVar(local_var_fnc,T,N)
-    dt = T / N;
-    t = linspace(0, T, N+1);
-    integral = 0;
-    
-    for i = 1:N
-        t_i = t(i);
-        t_next = t(i+1);
-        
-        % Use mid-pt of function
-        var_t = local_var_fnc((t_i+t_next)/2);
-        if isnan(var_t)
-            continue
-        end
-        % Integrate σ(t, St) over the time interval [t_i, t_next]
-        integral = integral + var_t * dt;
-    end
-    
-    % Calculate the average local volatility
-    ave_local_var = integral / T;
-
-end
