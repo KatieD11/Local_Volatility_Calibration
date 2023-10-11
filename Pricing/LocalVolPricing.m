@@ -18,38 +18,81 @@ S0 = 4545.86; % spx_20220401
 T_min = min(discountData_df.T)
 T_max = max(discountData_df.T)
 
-% Set up w as a function of T and k
+% Set up total implied variance w as a function of T and k
 w = @(k,T) SSVItotalImpliedVariance(discountData_df, T, k, ...
             calibration_params.rho, calibration_params.eps, ...
             calibration_params.gamma1, calibration_params.gamma2, ...
             calibration_params.beta1, calibration_params.beta2);
 
-% Central finite difference estimates for the partial derivatives
+% % Central finite difference estimates for the partial derivatives
+% dT=0.001; dk=0.001;
+% %dT=0.0001; dk=0.0001;
+% dwdT = @(k, T) (w(k, T+dT) - w(k, T-dT))/(2*dT);
+% dwdk = @(k, T) (w(k+dk, T) - w(k-dk, T))/(2*dk);
+% d2wdk2 = @(k, T) (w(k+2*dk, T) - 2*w(k, T) + w(k-2*dk, T))/(4*dk^2);
+% 
+% % Local volatility function (implemented as vol^2)
+% local_var = @(k,T) dwdT(k, T)./(1 - k./w(k,T) .* dwdk(k, T) + ...
+%     1/4 * (-1/4 - 1./w(k,T) + k.^2./w(k,T).^2).*(dwdk(k, T)).^2 ...
+%     + 1/2* d2wdk2(k,T));
+
+%% Test local vol function
 dT=0.001; dk=0.001;
-%dT=0.0001; dk=0.0001;
-dwdT = @(k, T) (w(k, T+dT) - w(k, T-dT))/(2*dT);
-dwdk = @(k, T) (w(k+dk, T) - w(k-dk, T))/(2*dk);
-d2wdk2 = @(k, T) (w(k+2*dk, T) - 2*w(k, T) + w(k-2*dk, T))/(4*dk^2);
 
-% Local volatility function (implemented as vol^2)
-local_var = @(k,T) dwdT(k, T)./(1 - k./w(k,T) .* dwdk(k, T) + ...
-    1/4 * (-1/4 - 1./w(k,T) + k.^2./w(k,T).^2).*(dwdk(k, T)).^2 ...
-    + 1/2* d2wdk2(k,T));
+%T = T_min-20*dT; %0.25;
+%T = 0.022; dT=0.001;
+dT=0.0001; T = 0.021;
+k1=-0.3;
+k2=0.2;
 
+vol = LocalVolFD(dT, dk, w, k1, T)
+vol = LocalVolFD(dT, dk, w, k2, T)
+%% 
+% Find vols for a range of times to maturity
+% k=0.2;
+% T = discountData_df.T;
+% vols = LocalVolFD(dT, dk, w, k, T)
+% 
+% % Extrapolate values for a T < T_min
+% Te = 0:0.01:T_max;
+% vol_extrap = @(Te) interp1(T,vols,Te, 'linear', 'extrap');
+% 
+% plot(T,vols, "-b")
+% hold on
+% plot(T,vols, ".b")
+% hold on
+% plot(Te,vol_extrap(Te), "or")
+% hold off
+% title("Local vol as a function of T for log-strike: "+k)
+% xlabel("Time to maturity")
+% ylabel("Local vol")
+
+%% Test: local vol surface plot
+%[X,Y] = meshgrid(-0.3:0.005:0.3, T_min:0.005:T_max);
+[X,Y] = meshgrid(-0.3:0.005:0.3, 0.021:0.005:T_max);
+%Z = sqrt(local_var(X,Y));
+Z = sqrt(LocalVolFD(dT, dk, w, X, Y));
+figure(1)
+surf(X,Y,Z)
+xlabel("log-strike")
+ylabel("T")
+zlabel("Local volatility")
+title("Local vol surface")
 %% Test: Plot results for a particular maturity T
 % Choose a time to maturity in days
 Tn_days = 90; % 17; % 60; % 35; %21;
+%Tn_days = 259; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259]
 T = (Tn_days-0)/365;
-%Tn_days = 259; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
 
 % Calculate SSVI implied vols & local vols
 k_set = -0.4:0.01:0.2;
+%k_set = -0.2:0.01:0.2;
 SSVI_vols = zeros(length(k_set),1);
 local_vols = zeros(length(k_set),1);
 for i = 1:length(k_set)
     wi = w(k_set(i), T);
     SSVI_vols(i) = sqrt(wi/T);
-    local_vols(i) = sqrt(local_var(k_set(i),T));
+    local_vols(i) = LocalVolFD(dT, dk, w, k_set(i), T); 
 end
 
 % Get the time to expiration in days (approx)
@@ -61,7 +104,7 @@ bid_ask_spread.T_days = round(bid_ask_spread.TimeToExpiration*365);
 ks = bid_ask_spread.logStrike(bid_ask_spread.T_days == Tn_days);
 
 filter = spx_df.T_days == Tn_days;
-figure(1)
+figure(2)
 plot(ks, spx_df.callBid_BSvol(filter), ".b");
 hold on
 plot(ks, spx_df.callAsk_BSvol(filter), ".r");
@@ -84,9 +127,7 @@ ylabel("BS implied vol")
 legend(["Call bid", "Call ask", "Put bid", "Put ask", "SSVI", "Target", "Local vol"])
 title("Implied volatilities for maturity " +Tn_days+ " days, "+ regexprep(dataset,'_',' '))
 %% MC Pricing
-% Choose a time to maturity in days
-%Tn_days = 90; % 17, 21, 140;
-%T = Tn_days/365;
+rng(0);
 
 % Approximate qT (from QT) as average dividend yield over the period
 discountData_df.qT = -log(discountData_df.QT)./discountData_df.T;
@@ -94,11 +135,11 @@ discountData_df.qT = -log(discountData_df.QT)./discountData_df.T;
 discountData_df.FT = S0*(discountData_df.QT)./(discountData_df.BT);
 
 % Use interpolation to estimate r(T), q(T), FT, BT for maturities not in the data set
-r = @(T) interp1(discountData_df.T,discountData_df.rT,T);
-q = @(T) interp1(discountData_df.T,discountData_df.qT,T);
-F = @(T) interp1(discountData_df.T,discountData_df.FT,T);
-B = @(T) interp1(discountData_df.T,discountData_df.BT,T); %DF
-Q = @(T) interp1(discountData_df.T,discountData_df.QT,T); %DF
+r = @(T) interp1(discountData_df.T,discountData_df.rT,T, 'linear', 'extrap');
+q = @(T) interp1(discountData_df.T,discountData_df.qT,T, 'linear', 'extrap');
+F = @(T) interp1(discountData_df.T,discountData_df.FT,T, 'linear', 'extrap');
+B = @(T) interp1(discountData_df.T,discountData_df.BT,T, 'linear', 'extrap'); %DF
+%Q = @(T) interp1(discountData_df.T,discountData_df.QT,T, 'linear', 'extrap'); 
 
 % Compute K given a log-strike k(T) and k given K
 K = @(k, T) F(T).*exp(k);
@@ -112,8 +153,10 @@ n = 50000; % # MC simulations
 
 % Stock price path parameters
 M = 20;
+%M = 40;
 m=0:(M-1);
-t_start = min(discountData_df.T) + dT;
+%t_start = min(discountData_df.T) + dT;
+t_start = 0.021; dT=0.0001; % min value for which LocalVolFD produces a real output
 t = t_start + m*(T-t_start)/M;
 dt = t(1:end) - [0, t(1:end-1)];
 
@@ -123,37 +166,19 @@ r_ave = r(T); q_ave = q(T);
 p_hat = zeros(length(Ks),1);
 p_mkt = zeros(length(Ks),1);
 for i = 1: length(Ks)
-    % Exceptional case for the smallest maturity in the dataset
-    % (Don't use a stock path)
-    if T < t_start
-        ki = k(Ks(i),T); % log-strike
-        var_T = local_var(ki,T);
-        Z = randn(1,n);
-        ST = S0*exp((r(T)-q(T)-0.5*var_T)'*T + ...
-            sqrt(var_T)'.*sqrt(T).*Z); 
-        
-        % Discounted payoff function
-        f_put = B(T)*max(Ks(i)-ST,0);
 
-        % Price estimate
-        p_hat(i) = mean(f_put); 
-    
-        % Store corresponding market price
-        p_mkt(i) = mean(spx_df.PutMktPrice(spx_df.Strike == Ks(i) & spx_df.T_days == Tn_days));
-        continue
-    end
-
-    % When T > t_start, simulate stock price paths
+    % Simulate stock price paths
     St = S0;
     for j = 1:M
         dtj = dt(j);
         Wt = sqrt(dtj) * randn(1,n);
         
         % Local_vol^2 at t, St      
-        var_t = local_var(k(St,t(j)),t(j));
+        %var_t = local_var(k(St,t(j)),t(j));
+        vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
         
         % Update the stock price using the risk-neutral dynamics
-        St = St .* exp((r_ave - q_ave - 0.5*var_t) * dtj + sqrt(var_t) .* Wt);
+        St = St .* exp((r_ave - q_ave - 0.5*vol_t.^2) * dtj + vol_t .* Wt);
     end    
     
     % Discounted payoff function
@@ -165,7 +190,7 @@ for i = 1: length(Ks)
     p_mkt(i) = mean(spx_df.PutMktPrice(spx_df.Strike == Ks(i) & spx_df.T_days == Tn_days));
 end
 
-figure(2)
+figure(3)
 plot(Ks, p_hat, ".")
 hold on
 plot(Ks, p_mkt, ".")
@@ -188,7 +213,7 @@ end
 ks = k(Ks,T);
 
 filter = spx_df.T_days == Tn_days;
-figure(3)
+figure(4)
 % plot(ks, spx_df.callBid_BSvol(filter), ".b");
 % hold on
 % plot(ks, spx_df.callAsk_BSvol(filter), ".r");
