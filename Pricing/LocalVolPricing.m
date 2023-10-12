@@ -81,7 +81,7 @@ title("Local vol surface")
 %% Test: Plot results for a particular maturity T
 % Choose a time to maturity in days
 Tn_days = 90; % 17; % 60; % 35; %21;
-%Tn_days = 259; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259]
+%Tn_days = 17; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259]
 T = (Tn_days-0)/365;
 
 % Calculate SSVI implied vols & local vols
@@ -160,6 +160,8 @@ t_start = 0.021; dT=0.0001; % min value for which LocalVolFD produces a real out
 t = t_start + m*(T-t_start)/M;
 dt = t(1:end) - [0, t(1:end-1)];
 
+%t = [0, t]; %test
+
 r_ave = r(T); q_ave = q(T);
  
 % Estimate prices for each strike at maturity
@@ -168,19 +170,36 @@ p_mkt = zeros(length(Ks),1);
 for i = 1: length(Ks)
 
     % Simulate stock price paths
+%     St = S0;
+%     for j = 1:M
+%         dtj = dt(j);
+%         Wt = sqrt(dtj) * randn(1,n);
+%         
+%         % Local_vol^2 at t, St      
+%         %var_t = local_var(k(St,t(j)),t(j));
+%         vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
+%         
+%         % Update the stock price using the risk-neutral dynamics
+%         St = St .* exp((r_ave - q_ave - 0.5*vol_t.^2) * dtj + vol_t .* Wt);
+%     end    
+
+    % Simulate stock price paths (Euler-Maruyama)
     St = S0;
+    Xt = log(St);
+
+    % Simulation using Euler-Maruyama method for log asset values
     for j = 1:M
         dtj = dt(j);
         Wt = sqrt(dtj) * randn(1,n);
         
-        % Local_vol^2 at t, St      
-        %var_t = local_var(k(St,t(j)),t(j));
+        % Local_vol at t, St 
+        % need to update this to use t(j-1) with t starting at 0
         vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
-        
-        % Update the stock price using the risk-neutral dynamics
-        St = St .* exp((r_ave - q_ave - 0.5*vol_t.^2) * dtj + vol_t .* Wt);
-    end    
-    
+
+        Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
+        St = exp(Xt);
+    end 
+
     % Discounted payoff function
     f_put = B(T)*max(Ks(i)-St,0);
     % Price estimate
