@@ -24,7 +24,9 @@ function w = SSVItotalImpliedVariance(discountData_df, T, k, rho, eps, ...
 %     else
 %         thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T, 'linear', 'extrap');
 %     end
-    thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T, 'linear', 'extrap');
+    %thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T, 'linear', 'extrap');
+    T0 = [0; discountData_df.T]; TotImplVar0 = [0; discountData_df.TotImplVar];
+    thetaT = interp1(T0,TotImplVar0,T, 'linear', 'extrap');
 
     % Define phi and w (for given thetaT, T, k)
     phi = @(eta, theta) eta./(theta.^gamma1.*(1+beta1.*theta).^gamma2.* ...

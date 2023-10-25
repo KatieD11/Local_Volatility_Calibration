@@ -85,8 +85,8 @@ Tn_days = 90; % 17; % 60; % 35; %21;
 T = (Tn_days-0)/365;
 
 % Calculate SSVI implied vols & local vols
-k_set = -0.4:0.01:0.2;
-%k_set = -0.2:0.01:0.2;
+%k_set = -0.4:0.01:0.2;
+k_set = -0.2:0.01:0.2;
 SSVI_vols = zeros(length(k_set),1);
 local_vols = zeros(length(k_set),1);
 for i = 1:length(k_set)
@@ -157,12 +157,18 @@ M = 20;
 m=0:(M-1);
 %t_start = min(discountData_df.T) + dT;
 t_start = 0.021; dT=0.0001; % min value for which LocalVolFD produces a real output
+%t_start = 0.01; dT=0.0001;
 t = t_start + m*(T-t_start)/M;
 dt = t(1:end) - [0, t(1:end-1)];
 
 %t = [0, t]; %test
 
 r_ave = r(T); q_ave = q(T);
+
+% Generate quasi random variates
+% num_it = length(Ks) * M;
+% p= primes(100000);
+% step = 1;
  
 % Estimate prices for each strike at maturity
 p_hat = zeros(length(Ks),1);
@@ -190,8 +196,15 @@ for i = 1: length(Ks)
     % Simulation using Euler-Maruyama method for log asset values
     for j = 1:M
         dtj = dt(j);
-        Wt = sqrt(dtj) * randn(1,n);
-        
+        Z1 = randn(1,n);
+        Z2 = -Z1;
+        Z = [Z1, Z2];
+        Wt = sqrt(dtj) * Z;
+
+%         x = vanderCorput(n+1,p(step));
+%         step = step+1;
+%         Wt = sqrt(dtj) * norminv(x(2:end));
+
         % Local_vol at t, St 
         % need to update this to use t(j-1) with t starting at 0
         vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
@@ -277,4 +290,31 @@ function ave_local_var = AveLocalVar(local_var_fnc,T,N)
     % Calculate the average local volatility
     ave_local_var = integral / T;
 
+end
+
+% Generates a van der Corput sequence given:
+% n - number of terms in sequene
+% b - base / radix
+% Example: g = vanderCorput(5,2) --> [0 0.5 0.25 0.75 0.125]'
+function g = vanderCorput(n,b) 
+    d = floor(log(n-1) / log(b))+1; % # digits
+    a = zeros(n,d);
+    D = 0:(n-1); 
+    for k=d:-1:1 % iterate backwards through each digit
+        a(:,k) = mod(D,b);
+        D = fix(D/b); % integer part
+    end
+
+    i = (d-1):-1:0;
+    g = sum(a.*b.^(-i-1),2);
+end
+
+function Z_ham = Hammersley(n)
+    %r1=2; r2=3; r3=5; % bases
+    r1=5; r2=2; r3=3; 
+
+    X_Ham = [(0:n)'/(n+1), vanderCorput(n+1,r1), vanderCorput(n+1, r2), ...
+        vanderCorput(n+1,r3)];
+    
+    Z_ham = norminv(X_Ham(2:end,:));
 end

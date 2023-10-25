@@ -149,12 +149,21 @@ T2 = diag(ones(N-2,1), 1) + diag(ones(N-2,1), -1) - ...
 tm = T - m*dTau;
 %tm = tstart + T - m*dTau;
 b = zeros(N-1, M+1);
+% var = arrayfun(@(t) local_var(s_min+ds,t), tm);
+% b(1,:) = 0.5*dTau*(Smin/dS+1)*(var.*(Smin/dS+1) ...
+%     -(r_ave - q_ave)).*U0(Smin, m*dTau);
 b(1,:) = 0.5*dTau*(Smin/dS+1)*(local_var(s_min+ds,tm).*(Smin/dS+1) ...
     -(r_ave - q_ave)).*U0(Smin, m*dTau);
 b(end,:) = 0.5*dTau*(Smax/dS-1)*(local_var(s_max-ds,tm).*(Smax/dS-1) ...
     +(r_ave-q_ave))*Uinf(Smax, m*dTau);
 % Replace NaN values with 0
-b(isnan(b))=0;
+if max(isnan(b), [], 'all') == 1    
+    disp("Underfined local var values")
+    tm(isnan(b(1,:)))
+    local_var(s_min+ds,0)
+    b(isnan(b))=0;
+end
+
 
 % Solution U
 U = zeros(N-1, M+1);
