@@ -81,7 +81,7 @@ title("Local vol surface")
 %% Test: Plot results for a particular maturity T
 % Choose a time to maturity in days
 Tn_days = 90; % 17; % 60; % 35; %21;
-%Tn_days = 17; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259]
+%Tn_days = 17; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259, 273]
 T = (Tn_days-0)/365;
 
 % Calculate SSVI implied vols & local vols
@@ -152,12 +152,14 @@ Ks = spx_df.Strike(spx_df.T_days == Tn_days); % strikes in data set
 n = 50000; % # MC simulations
 
 % Stock price path parameters
+% * Set values based on maturity T
+t_start = 0.01; dT=0.0001;
 M = 20;
 %M = 40;
 m=0:(M-1);
+
 %t_start = min(discountData_df.T) + dT;
-t_start = 0.021; dT=0.0001; % min value for which LocalVolFD produces a real output
-%t_start = 0.01; dT=0.0001;
+
 t = t_start + m*(T-t_start)/M;
 dt = t(1:end) - [0, t(1:end-1)];
 
@@ -206,8 +208,13 @@ for i = 1: length(Ks)
 %         Wt = sqrt(dtj) * norminv(x(2:end));
 
         % Local_vol at t, St 
-        % need to update this to use t(j-1) with t starting at 0
-        vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
+        % set initial t0 time to 0.001 (to approx 0, since vol_t at 0 is
+        % undefined)
+        if (j==1)
+            vol_t = LocalVolFD(dT, dk, w, k(St,0.001), 0.001);
+        else
+            vol_t = LocalVolFD(dT, dk, w, k(St,t(j-1)), t(j-1));
+        end
 
         Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
         St = exp(Xt);
