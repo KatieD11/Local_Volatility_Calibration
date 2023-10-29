@@ -32,7 +32,9 @@ beta1_opt = opt_params(5)
 beta2_opt = opt_params(6)
 cost = cost_fnc(discountData_df, option_df, eps_opt, rho_opt, ...
     gamma1_opt, gamma2_opt, beta1_opt, beta2_opt)
-% Save params in csv file
+cost_w = obj_fnc(discountData_df, option_df, eps_opt, rho_opt, ...
+    gamma1_opt, gamma2_opt, beta1_opt, beta2_opt)
+%% Save params in csv file
 calibration_params = table;
 calibration_params.eps = eps_opt;
 calibration_params.rho = rho_opt;
@@ -40,8 +42,9 @@ calibration_params.gamma1 = gamma1_opt;
 calibration_params.gamma2 = gamma2_opt;
 calibration_params.beta1 = beta1_opt;
 calibration_params.beta2 = beta2_opt;
-% Save cost
+% Save cost (without and with weights)
 calibration_params.cost = cost;
+calibration_params.cost_w = cost_w;
 writetable(calibration_params, "Calibration_results/"+dataset+"_calibration_params_with_free_params.csv")
 %% 
 % gs = GlobalSearch;

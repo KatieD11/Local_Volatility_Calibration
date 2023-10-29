@@ -21,8 +21,8 @@ SSVIvols_powerLaw_data = load('Calibration/Calibration_results/'+dataset+'_SSVIi
 SSVIvols_powerLaw_cellArray = SSVIvols_powerLaw_data.SSVI_vols_cellArray;
 %% Plot implied volatility results for a particular maturity T
 % Choose a time to maturity in days
-Tn_days = 90;
-%Tn_days = 259; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., ]
+%Tn_days = 90;
+Tn_days = 17; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ...,259, 273 ]
 
 % Get the time to expiration in days (approx)
 spx_df.T_days = round(spx_df.TimeToExpiration*365);
@@ -42,23 +42,26 @@ plot(ks, spx_df.putBid_BSvol(filter), ".",'color', [.5 .5 .5]);
 hold on
 plot(ks, spx_df.putAsk_BSvol(filter), ".",'color', [.5 .5 .5]);
 hold on
-plot(ks, SSVIvols_withWeights_cellArray{discountData_df.T_days == Tn_days}, "-g", "LineWidth",1);
-hold on
-plot(ks, SSVIvols_freeParams_cellArray{discountData_df.T_days == Tn_days}, "-r", "LineWidth",1);
-hold on
+% plot(ks, SSVIvols_withWeights_cellArray{discountData_df.T_days == Tn_days}, "-g", "LineWidth",1);
+% hold on
 plot(ks, SSVIvols_heston_cellArray{discountData_df.T_days == Tn_days}, "-b", "LineWidth",1);
 hold on
 plot(ks, SSVIvols_powerLaw_cellArray{discountData_df.T_days == Tn_days}, "-m", "LineWidth",1);
+hold on
+plot(ks, SSVIvols_freeParams_cellArray{discountData_df.T_days == Tn_days}, "-", "LineWidth",1, 'color',"#00d400");
 hold on
 plot(bid_ask_spread.logStrike(bid_ask_spread.T_days == Tn_days), ...
     bid_ask_spread.sigma_target(bid_ask_spread.T_days== Tn_days), ...
     "-c", "LineWidth",1);
 hold off
 xlabel("Log strike")
-ylabel("BS implied vol")
+ylabel("Implied volatility")
+% legend(["Call bid", "Call ask", "Put bid", "Put ask", ...
+%     "SSVI (with weights)", "SSVI (free parameters)", ...
+%     "SSVI (heston-like)", "SSVI (power-law)","Target"])
 legend(["Call bid", "Call ask", "Put bid", "Put ask", ...
-    "SSVI (with weights)", "SSVI (free parameters)", ...
-    "SSVI (heston-like)", "SSVI (power-law)","Target"])
+    "SSVI: heston-like", "SSVI: power-law", ...
+    "SSVI: SPX", "Target"])
 title("Implied volatilities for maturity " +Tn_days+ " days")
 %% Plot MAPEs (Mean absolute percentage errors) vs maturity
 % Load MAPEs for each model
@@ -79,26 +82,27 @@ end
 
 figure(2)
 % MAPEs plots
-plot(T_maturities, mapes_withWeights.mape, "xg", "LineWidth",2)
+% plot(T_maturities*365, mapes_withWeights.mape, "xg", "LineWidth",2)
+% hold on
+plot(T_maturities*365, mapes_heston.mape, "xb", "LineWidth",2)
 hold on
-plot(T_maturities, mapes_freeParams.mape, "xr", "LineWidth",2)
+plot(T_maturities*365, mapes_powerLaw.mape, "xm", "LineWidth",2)
 hold on
-plot(T_maturities, mapes_heston.mape, "xb", "LineWidth",2)
-hold on
-plot(T_maturities, mapes_powerLaw.mape, "xm", "LineWidth",2)
+plot(T_maturities*365, mapes_freeParams.mape, "x", "LineWidth",2, "MarkerEdgeColor","#00d400")
 hold on
 ylabel("MAPE (%)")
 % Open interest weight plot
 yyaxis right;
-bar(T_maturities, total_open_int_weight*100, 'FaceColor', ...
+bar(T_maturities*365, total_open_int_weight*100, 'FaceColor', ...
     [0.5, 0.5, 0.5], 'EdgeColor',[0.5, 0.5, 0.5], ...
     'FaceAlpha', 0.2, 'EdgeAlpha', 0.5)
 hold off
-title("Mean absolute percentage errors of SSVI vols vs target implied vols")
-xlabel("Maturity (T)")
+title("Mean absolute percentage errors of SSVI implied volatilities")
+xlabel("Maturity (in days)")
 ylabel("Open interest weight (%)")
 set(gca, 'ycolor', [0.5, 0.5, 0.5]);  % Set y-axis color to gray
-legend(["SSVI (with weights)", "SSVI (free parameters)", ...
-    "SSVI (heston-like)", "SSVI (power-law)"])
+% legend(["SSVI (with weights)", "SSVI (free parameters)", ...
+%     "SSVI (heston-like)", "SSVI (power-law)"])
+legend(["SSVI: heston-like", "SSVI: power-law", "SSVI: SPX"])
 
 

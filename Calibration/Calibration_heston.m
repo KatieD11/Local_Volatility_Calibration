@@ -26,12 +26,14 @@ opt_params = fmincon(f,[0.5, 0.5],[],[],[],[],lb,ub);
 lambda_opt = opt_params(1)
 rho_opt = opt_params(2)
 cost = cost_fnc(discountData_df, option_df, lambda_opt, rho_opt)
-% Save params in csv file
+cost_w = obj_fnc(discountData_df, option_df, lambda_opt, rho_opt)
+%% Save params in csv file
 calibration_params = table;
 calibration_params.lambda = lambda_opt;
 calibration_params.rho = rho_opt;
-% Save cost
+% Save cost (without and with weights)
 calibration_params.cost = cost;
+calibration_params.cost_w = cost_w;
 writetable(calibration_params, "Calibration_results/"+dataset+"_calibration_params_heston.csv")
 %% 
 % Define objective function for optimisation problem (calibration)
