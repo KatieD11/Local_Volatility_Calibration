@@ -36,7 +36,7 @@ calibration_params.rho = rho_opt;
 calibration_params.gamma = gamma_opt;
 % Save cost (without and with weights)
 calibration_params.cost = cost;
-calibration_params.cost = cost_w;
+calibration_params.cost_w = cost_w;
 writetable(calibration_params, "Calibration_results/"+dataset+"_calibration_params_powerLaw.csv")
 %% 
 % Define objective function for optimisation problem (calibration)
