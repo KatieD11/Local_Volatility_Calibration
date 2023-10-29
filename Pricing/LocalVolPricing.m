@@ -139,7 +139,7 @@ r = @(T) interp1(discountData_df.T,discountData_df.rT,T, 'linear', 'extrap');
 q = @(T) interp1(discountData_df.T,discountData_df.qT,T, 'linear', 'extrap');
 F = @(T) interp1(discountData_df.T,discountData_df.FT,T, 'linear', 'extrap');
 B = @(T) interp1(discountData_df.T,discountData_df.BT,T, 'linear', 'extrap'); %DF
-%Q = @(T) interp1(discountData_df.T,discountData_df.QT,T, 'linear', 'extrap'); 
+Q = @(T) interp1(discountData_df.T,discountData_df.QT,T, 'linear', 'extrap'); 
 
 % Compute K given a log-strike k(T) and k given K
 K = @(k, T) F(T).*exp(k);
@@ -150,47 +150,20 @@ k = @(K,T) log(K./F(T));
 % MC parameters
 Ks = spx_df.Strike(spx_df.T_days == Tn_days); % strikes in data set
 n = 50000; % # MC simulations
-
-% Stock price path parameters
-% * Set values based on maturity T
 t_start = 0.01; dT=0.0001;
-M = 20;
+M = 20; 
 %M = 40;
 m=0:(M-1);
-
-%t_start = min(discountData_df.T) + dT;
 
 t = t_start + m*(T-t_start)/M;
 dt = t(1:end) - [0, t(1:end-1)];
 
-%t = [0, t]; %test
-
 r_ave = r(T); q_ave = q(T);
-
-% Generate quasi random variates
-% num_it = length(Ks) * M;
-% p= primes(100000);
-% step = 1;
  
 % Estimate prices for each strike at maturity
 p_hat = zeros(length(Ks),1);
 p_mkt = zeros(length(Ks),1);
 for i = 1: length(Ks)
-
-    % Simulate stock price paths
-%     St = S0;
-%     for j = 1:M
-%         dtj = dt(j);
-%         Wt = sqrt(dtj) * randn(1,n);
-%         
-%         % Local_vol^2 at t, St      
-%         %var_t = local_var(k(St,t(j)),t(j));
-%         vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
-%         
-%         % Update the stock price using the risk-neutral dynamics
-%         St = St .* exp((r_ave - q_ave - 0.5*vol_t.^2) * dtj + vol_t .* Wt);
-%     end    
-
     % Simulate stock price paths (Euler-Maruyama)
     St = S0;
     Xt = log(St);
@@ -203,20 +176,20 @@ for i = 1: length(Ks)
         Z = [Z1, Z2];
         Wt = sqrt(dtj) * Z;
 
-%         x = vanderCorput(n+1,p(step));
-%         step = step+1;
-%         Wt = sqrt(dtj) * norminv(x(2:end));
-
         % Local_vol at t, St 
-        % set initial t0 time to 0.001 (to approx 0, since vol_t at 0 is
-        % undefined)
+        % set initial t0 time to 0.001 (to approx 0, since vol_t at 0 is undefined)
         if (j==1)
+            rj = -1/dtj*(log(B(t(j))) - log(B(0.001)));
+            qj = -1/dtj*(log(Q(t(j))) - log(Q(0.001)));
             vol_t = LocalVolFD(dT, dk, w, k(St,0.001), 0.001);
         else
+            rj = -1/dtj*(log(B(t(j))) - log(B(t(j-1))));
+            qj = -1/dtj*(log(Q(t(j))) - log(Q(t(j-1))));            
             vol_t = LocalVolFD(dT, dk, w, k(St,t(j-1)), t(j-1));
         end
 
-        Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
+        %Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
+        Xt = Xt + (rj - qj - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
         St = exp(Xt);
     end 
 
@@ -246,7 +219,9 @@ BT = discountData_df.BT(discountData_df.T_days == Tn_days);
 p_BSvol = zeros(length(p_hat),1);
 for i = 1:length(p_hat)
     %call_BSvol = fzero(@(BSvol) BScall(Ti,Ki,S0,BSvol,QT, BT) - call_i,0.1);
-    p_BSvol(i) = fzero(@(BSvol) BSput(T,Ks(i),S0,BSvol,QT, BT) - p_hat(i),0.1); 
+    %p_BSvol(i) = fzero(@(BSvol) BSput(T,Ks(i),S0,BSvol,QT, BT) - p_hat(i),0.1); 
+    options = optimset('TolFun', 1e-30);
+    p_BSvol(i) = fminsearch(@(BSvol) abs(BSput(T,Ks(i),S0,BSvol,QT, BT) - p_hat(i)),0.1, options); 
 end
 
 ks = k(Ks,T);
@@ -273,55 +248,3 @@ xlabel("Log strike")
 ylabel("BS implied vol")
 legend(["Put bid", "Put ask", "SSVI", "Target", "Put MC estimates"])
 title("Implied volatilities for maturity " +Tn_days+ " days, "+ regexprep(dataset,'_',' '))
-
-%% 
-% Numerical integration to estimate average local volatility
-function ave_local_var = AveLocalVar(local_var_fnc,T,N)
-    dt = T / N;
-    t = linspace(0, T, N+1);
-    integral = 0;
-    
-    for i = 1:N
-        t_i = t(i);
-        t_next = t(i+1);
-        
-        % Use mid-pt of function
-        var_t = local_var_fnc((t_i+t_next)/2);
-        if isnan(var_t)
-            continue
-        end
-        % Integrate σ(t, St) over the time interval [t_i, t_next]
-        integral = integral + var_t * dt;
-    end
-    
-    % Calculate the average local volatility
-    ave_local_var = integral / T;
-
-end
-
-% Generates a van der Corput sequence given:
-% n - number of terms in sequene
-% b - base / radix
-% Example: g = vanderCorput(5,2) --> [0 0.5 0.25 0.75 0.125]'
-function g = vanderCorput(n,b) 
-    d = floor(log(n-1) / log(b))+1; % # digits
-    a = zeros(n,d);
-    D = 0:(n-1); 
-    for k=d:-1:1 % iterate backwards through each digit
-        a(:,k) = mod(D,b);
-        D = fix(D/b); % integer part
-    end
-
-    i = (d-1):-1:0;
-    g = sum(a.*b.^(-i-1),2);
-end
-
-function Z_ham = Hammersley(n)
-    %r1=2; r2=3; r3=5; % bases
-    r1=5; r2=2; r3=3; 
-
-    X_Ham = [(0:n)'/(n+1), vanderCorput(n+1,r1), vanderCorput(n+1, r2), ...
-        vanderCorput(n+1,r3)];
-    
-    Z_ham = norminv(X_Ham(2:end,:));
-end
