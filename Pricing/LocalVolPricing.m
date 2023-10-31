@@ -149,50 +149,59 @@ k = @(K,T) log(K./F(T));
 
 % MC parameters
 Ks = spx_df.Strike(spx_df.T_days == Tn_days); % strikes in data set
-n = 50000; % # MC simulations
+%n = 50000; % # MC simulations
+n = 1000000;
 t_start = 0.01; dT=0.0001;
-M = 20; 
-%M = 40;
+%t_start = 0.001;
+M = 100;
 m=0:(M-1);
 
 t = t_start + m*(T-t_start)/M;
 dt = t(1:end) - [0, t(1:end-1)];
 
 r_ave = r(T); q_ave = q(T);
+
+% Generate Sobol sequences
+q = qrandstream('sobol',M);
+X = rand(q,n,M);
+
+% Simulate stock price paths (Euler-Maruyama)
+St = S0;
+Xt = log(St);
+for j = 1:M
+    dtj = dt(j);
+%     Z1 = randn(1,n);
+%     Z2 = -Z1;
+%     Z = [Z1, Z2];
+%     Wt = sqrt(dtj) * Z;
+    
+    % Using sobol sequences
+    Z1 = norminv(X(:,j));
+    Z2 = -Z1;
+    Z = [Z1; Z2]';
+    Wt = sqrt(dtj) * Z;
+
+    % Local_vol at t, St 
+    % set initial t0 time to 0.001 (to approx 0, since vol_t at 0 is undefined)
+    if (j==1)
+        rj = -1/dtj*(log(B(t(j))) - log(B(0.001)));
+        qj = -1/dtj*(log(Q(t(j))) - log(Q(0.001)));
+        vol_t = LocalVolFD(dT, dk, w, k(St,0.001), 0.001);
+    else
+        rj = -1/dtj*(log(B(t(j))) - log(B(t(j-1))));
+        qj = -1/dtj*(log(Q(t(j))) - log(Q(t(j-1))));            
+        vol_t = LocalVolFD(dT, dk, w, k(St,t(j-1)), t(j-1));
+    end  
+
+    Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
+    %Xt = Xt + (rj - qj - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
+    St = exp(Xt);
+end 
  
 % Estimate prices for each strike at maturity
 p_hat = zeros(length(Ks),1);
 p_mkt = zeros(length(Ks),1);
 for i = 1: length(Ks)
-    % Simulate stock price paths (Euler-Maruyama)
-    St = S0;
-    Xt = log(St);
-
-    % Simulation using Euler-Maruyama method for log asset values
-    for j = 1:M
-        dtj = dt(j);
-        Z1 = randn(1,n);
-        Z2 = -Z1;
-        Z = [Z1, Z2];
-        Wt = sqrt(dtj) * Z;
-
-        % Local_vol at t, St 
-        % set initial t0 time to 0.001 (to approx 0, since vol_t at 0 is undefined)
-        if (j==1)
-            rj = -1/dtj*(log(B(t(j))) - log(B(0.001)));
-            qj = -1/dtj*(log(Q(t(j))) - log(Q(0.001)));
-            vol_t = LocalVolFD(dT, dk, w, k(St,0.001), 0.001);
-        else
-            rj = -1/dtj*(log(B(t(j))) - log(B(t(j-1))));
-            qj = -1/dtj*(log(Q(t(j))) - log(Q(t(j-1))));            
-            vol_t = LocalVolFD(dT, dk, w, k(St,t(j-1)), t(j-1));
-        end
-
-        %Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
-        Xt = Xt + (rj - qj - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
-        St = exp(Xt);
-    end 
-
     % Discounted payoff function
     f_put = B(T)*max(Ks(i)-St,0);
     % Price estimate
