@@ -1,4 +1,5 @@
-% Pricing using the local volatility fnc
+% Test file
+% MC pricing using the local volatility fnc
 clear; clc;
 addpath('../Data_prep');
 % Select files

@@ -8,9 +8,9 @@ addpath('./Data_prep');
 dataset = "spx_20220401";
 %calibration_set = "with_weights";
 %calibration_set = "without_weights";
-%calibration_set = "with_free_params";
+calibration_set = "with_free_params";
 %calibration_set = "heston";
-calibration_set = "powerLaw";
+%calibration_set = "powerLaw";
 
 spx_df=readtable("Data_prep/Data/"+dataset+"_filtered_optionDataWithImplVol.csv");
 discountData_df=readtable("Data_prep/Data/"+dataset+"_discountData.csv");
