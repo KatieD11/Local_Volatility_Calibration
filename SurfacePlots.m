@@ -24,6 +24,9 @@ impliedVolsSPX = zeros(length(T), length(k));
 impliedVolsHST = zeros(length(T), length(k));
 impliedVolsPWR = zeros(length(T), length(k));
 
+totImplVarHST = zeros(length(T), length(k)); % Plot for report (See ImpliedVolatilies file for testing the condition)
+totImplVarPWR = zeros(length(T), length(k));
+
 % Interpolate to get thetaT values at different maturities
 thetaT_fnc = @(T) interp1(T_maturities,discountData_df.TotImplVar,T, 'linear');
 
@@ -33,10 +36,12 @@ for i = 1:length(T)
     thetaT = thetaT_fnc(T_i);
         impliedVolsHST(i,:) = SSVIimpliedVolatility_Heston(thetaT, T_i, k, ...
             calibration_params_HST.rho, calibration_params_HST.lambda);
+        totImplVarHST(i,:) =impliedVolsHST(i,:).^2*T_i;
 
         impliedVolsPWR(i,:) = SSVIimpliedVolatility_PowerLaw(thetaT, T_i, k, ...
             calibration_params_PWR.rho, calibration_params_PWR.eta, ...
-            calibration_params_PWR.gamma);        
+            calibration_params_PWR.gamma);  
+        totImplVarPWR(i,:) =impliedVolsPWR(i,:).^2*T_i;
 
         impliedVolsSPX(i,:) = SSVIimpliedVolatility(thetaT, T_i, k, ...
                 calibration_params_SPX.rho, calibration_params_SPX.eps, ...
@@ -84,3 +89,41 @@ ylabel("Maturity");
 zlabel("Implied volatility");
 %legend(["Heston-like", "Power-law", "SPX-fit"])
 hold off; % Release the hold on the current axes
+%% Implied variance plot (for HST surface)
+%totImplVarHST
+figure(5)
+for i = 1:length(T)
+    T_i = T(i);
+    plot(k, totImplVarHST(i,:), "-", "LineWidth",1);
+    hold on
+end
+hold off
+legend(string(T))
+title("Total implied variance plot for the Heston-like surface")
+xlabel("Log strike")
+ylabel("Total implied variance")
+
+%% Implied variance plot (for PWR surface)
+figure(6)
+for i = 1:length(T)
+    T_i = T(i);
+    plot(k, totImplVarPWR(i,:), "-", "LineWidth",1);
+    hold on
+end
+hold off
+%legend(string(T))
+title("Total implied variance plot for the power-law surface")
+xlabel("Log strike")
+ylabel("Total implied variance")
+%% Check subset of the smaller maturities
+figure(7)
+for i = 1:18
+    T_i = T(i);
+    plot(k, totImplVarPWR(i,:), "-", "LineWidth",1);
+    hold on
+end
+hold off
+%legend(string(T))
+title("Total implied variance plot for the power-law surface, maturities 17 to 80 days")
+xlabel("Log strike")
+ylabel("Total implied variance")
