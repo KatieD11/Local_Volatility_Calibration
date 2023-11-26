@@ -23,7 +23,7 @@ bid_ask_spread.T_days = round(bid_ask_spread.TimeToExpiration*365);
 
 % Choose a time to maturity in days
 %Tn_days = 90; % 17; % 60; % 35; %21;
-Tn_days = 273; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259, 273]
+Tn_days = 182; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259, 273]
 T = Tn_days/365;
 
 %% Set up total implied variance w as a function of T and k
@@ -55,9 +55,8 @@ k = @(K,T) log(K./F(T));
 % MC parameters
 Ks = spx_df.Strike(spx_df.T_days == Tn_days); % strikes in data set
 %n = 50000; % # MC simulations
-n = 1000000;
-t_start = 0.01;  
-%t_start = 0.001;
+n = 2000000;
+t_start = 0.002;
 dT=0.0001;dk=0.001; % steps for finite diff approx of local vol
 M = 100;
 m=0:(M-1);
@@ -90,15 +89,15 @@ for j = 1:M
     % Local_vol at t, St 
     % set initial t0 time to 0.001 (to approx 0, since vol_t at 0 is undefined)
     if (j==1)
-        rj = -1/dtj*(log(B(t(j))) - log(B(0.001)));
-        qj = -1/dtj*(log(Q(t(j))) - log(Q(0.001)));
+%         rj = -1/dtj*(log(B(t(j))) - log(B(0.001)));
+%         qj = -1/dtj*(log(Q(t(j))) - log(Q(0.001)));
         vol_t = LocalVolFD(dT, dk, w, k(St,0.001), 0.001);
     else
-        rj = -1/dtj*(log(B(t(j))) - log(B(t(j-1))));
-        qj = -1/dtj*(log(Q(t(j))) - log(Q(t(j-1))));            
+%         rj = -1/dtj*(log(B(t(j))) - log(B(t(j-1))));
+%         qj = -1/dtj*(log(Q(t(j))) - log(Q(t(j-1))));            
         vol_t = LocalVolFD(dT, dk, w, k(St,t(j-1)), t(j-1));
     end  
-
+    %vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
     Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
     %Xt = Xt + (rj - qj - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
     St = exp(Xt);
