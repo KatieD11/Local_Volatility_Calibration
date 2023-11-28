@@ -8,8 +8,8 @@ addpath('./Data_prep');
 dataset = "spx_20220401";
 %calibration_set = "with_weights";
 %calibration_set = "without_weights";
-calibration_set = "with_free_params";
-%calibration_set = "heston";
+%calibration_set = "with_free_params";
+calibration_set = "heston";
 %calibration_set = "powerLaw";
 
 spx_df=readtable("Data_prep/Data/"+dataset+"_filtered_optionDataWithImplVol.csv");
@@ -114,7 +114,7 @@ for i = 1:length(T_maturities)
 end
 hold off
 legend(string(T_maturities))
-title("Total implied variance plot, "+regexprep(dataset,'_',' '))
+title("Total implied variance plot")
 xlabel("Log strike")
 ylabel("Total implied variance")
 %% Check subset of the smaller maturities
@@ -129,7 +129,7 @@ for i = 1:length(T_small)
 end
 hold off
 legend(string(T_small))
-title("Subset: Total implied variance plot, "+ regexprep(dataset,'_',' '))
+title("Subset: Total implied variance plot")
 xlabel("Log strike")
 ylabel("Total implied variance")
 %% Implied variance plot
