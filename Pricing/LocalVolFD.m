@@ -1,5 +1,5 @@
 % Finite diff. approx. of the local volatility function
-% given the total implied variance w(k, T)
+% given the total implied variance w(k, T) parameterisation
 % vol = LocalVolFD(dT, dk, w, k, T)
 function vol = LocalVolFD(dT, dk, w, k, T)
     % Central finite difference estimates for the partial derivatives

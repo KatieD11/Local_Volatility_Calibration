@@ -1,4 +1,4 @@
-% BS call using discount factors QT, BT
+% BS call price using discount factors QT, BT
 % c = BScall(T,K,S0,sigma,QT, BT)
 function c = BScall(T,K,S0,sigma,QT, BT)
     d1 = (log(S0/K)+log(QT/BT)+0.5*sigma^2*T)/(sigma*sqrt(T));

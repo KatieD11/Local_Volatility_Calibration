@@ -1,4 +1,5 @@
-% European Option Pricing (MC)
+% European Option Pricing (Monte-Carlo approach)
+% Market price recovery analysis
 clear; clc;
 rng(0);
 

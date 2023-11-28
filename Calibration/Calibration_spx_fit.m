@@ -1,4 +1,4 @@
-% Calibration (with free parameter variables)
+% Calibration using SPX-fit surface (with free parameter variables)
 % First run SPX_analysis file and SPX_bid_ask_spread (in Data_prep folder)
 % to get filtered option data (with BS implied vols),
 % discount data, and bid-ask spreads

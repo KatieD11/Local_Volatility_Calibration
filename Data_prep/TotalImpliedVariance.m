@@ -50,4 +50,3 @@ end
 % compute the Black-Scholes implied volatility σ2 (Ti,FT ) by (linearly)
 % interpolating the option prices between the strikes either side of the ATM strike. 
 % Take the average of the put and call Black-Scholes implied volatilities computed using the interpolated prices.
-

@@ -1,4 +1,4 @@
-% Find the total implied variance using SVI framework
+% Find the total implied variance using SVI framework for the SPX-fit surface
 % Use interpolation to estimate thetaT for maturities not in the data set
 % w = SSVItotalImpliedVariance(thetaT, T, k, rho, eps, gamma1, gamma2, beta1, beta2)
 function w = SSVItotalImpliedVariance(discountData_df, T, k, rho, eps, ...
@@ -6,13 +6,6 @@ function w = SSVItotalImpliedVariance(discountData_df, T, k, rho, eps, ...
     % Define eta
     eta = 2.016048*exp(eps);
 
-    % Find thetaT
-%     thetaT = interp1(discountData_df.T,discountData_df.TotImplVar,T, 'linear', 'extrap');
-%     if (thetaT <=0)
-%         % Extrapolate with the condition that thetaT at t=0 is zero
-%         T0 = [0; discountData_df.T]; TotImplVar0 = [0; discountData_df.TotImplVar];
-%         thetaT = interp1(T0,TotImplVar0,T, 'linear', 'extrap');
-%     end
     % Extrapolate from TotImplVar = 0 at T=0
     T0 = [0; discountData_df.T]; TotImplVar0 = [0; discountData_df.TotImplVar];
     thetaT = interp1(T0,TotImplVar0,T, 'linear', 'extrap');

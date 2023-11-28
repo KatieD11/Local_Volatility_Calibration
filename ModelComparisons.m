@@ -104,5 +104,3 @@ set(gca, 'ycolor', [0.5, 0.5, 0.5]);  % Set y-axis color to gray
 % legend(["SSVI (with weights)", "SSVI (free parameters)", ...
 %     "SSVI (heston-like)", "SSVI (power-law)"])
 legend(["SSVI: heston-like", "SSVI: power-law", "SSVI: SPX"])
-
-
