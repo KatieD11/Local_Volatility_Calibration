@@ -23,8 +23,8 @@ discountData_df.T_days = round(discountData_df.T*365);
 bid_ask_spread.T_days = round(bid_ask_spread.TimeToExpiration*365);
 
 % Choose a time to maturity in days
-%Tn_days = 90; % 17; % 60; % 35; %21;
-Tn_days = 182; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259, 273]
+Tn_days = 90; % 17; % 60; % 35; %21;
+%Tn_days = 273; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259, 273]
 T = Tn_days/365;
 
 %% Set up total implied variance w as a function of T and k
@@ -92,11 +92,19 @@ for j = 1:M
     if (j==1)
 %         rj = -1/dtj*(log(B(t(j))) - log(B(0.001)));
 %         qj = -1/dtj*(log(Q(t(j))) - log(Q(0.001)));
-        vol_t = LocalVolFD(dT, dk, w, k(St,0.001), 0.001);
+        %vol_t = LocalVolFD(dT, dk, w, k(St,0.001), 0.001);
+        vol_t = SSVIlocalVol(discountData_df, 0.001, k(St,0.001), ...
+            calibration_params.rho, calibration_params.eps, ...
+            calibration_params.gamma1, calibration_params.gamma2, ...
+            calibration_params.beta1, calibration_params.beta2);
     else
 %         rj = -1/dtj*(log(B(t(j))) - log(B(t(j-1))));
 %         qj = -1/dtj*(log(Q(t(j))) - log(Q(t(j-1))));            
-        vol_t = LocalVolFD(dT, dk, w, k(St,t(j-1)), t(j-1));
+        %vol_t = LocalVolFD(dT, dk, w, k(St,t(j-1)), t(j-1));
+        vol_t = SSVIlocalVol(discountData_df, t(j-1), k(St,t(j-1)), ...
+            calibration_params.rho, calibration_params.eps, ...
+            calibration_params.gamma1, calibration_params.gamma2, ...
+            calibration_params.beta1, calibration_params.beta2);
     end  
     %vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
     Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
