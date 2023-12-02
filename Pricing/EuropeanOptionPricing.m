@@ -23,8 +23,8 @@ discountData_df.T_days = round(discountData_df.T*365);
 bid_ask_spread.T_days = round(bid_ask_spread.TimeToExpiration*365);
 
 % Choose a time to maturity in days
-Tn_days = 90; % 17; % 60; % 35; %21;
-%Tn_days = 273; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259, 273]
+%Tn_days = 90; % 17; % 60; % 35; %21;
+Tn_days = 17; % [17, 19, 21, 24, 26, 28, 31, 35, 42, 49 ..., 259, 273]
 T = Tn_days/365;
 
 %% Set up total implied variance w as a function of T and k
@@ -57,6 +57,7 @@ k = @(K,T) log(K./F(T));
 Ks = spx_df.Strike(spx_df.T_days == Tn_days); % strikes in data set
 %n = 50000; % # MC simulations
 n = 2000000;
+%n = 10000000;
 t_start = 0.002;
 dT=0.0001;dk=0.001; % steps for finite diff approx of local vol
 M = 100;
@@ -105,7 +106,44 @@ for j = 1:M
             calibration_params.rho, calibration_params.eps, ...
             calibration_params.gamma1, calibration_params.gamma2, ...
             calibration_params.beta1, calibration_params.beta2);
-    end  
+    end 
+
+    % Test: Predictor-corrector
+    % Vol
+%     X_term = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
+%     S_term = exp(X_term);
+%     vol_term = SSVIlocalVol(discountData_df, t(j), k(S_term,t(j)), ...
+%             calibration_params.rho, calibration_params.eps, ...
+%             calibration_params.gamma1, calibration_params.gamma2, ...
+%             calibration_params.beta1, calibration_params.beta2);
+%     vol_ave = 0.5*(vol_t + vol_term);
+%     if (j==M-10)
+%         figure(5)
+%         plot(vol_t, ".")
+%         hold on 
+%         plot(vol_ave, ".")
+%         hold off
+%         legend(["vol_t", "vol_ave"])
+%         mean(vol_t)
+%         mean(vol_ave)
+%     end
+% 
+%     Xt = Xt + (r_ave - q_ave - 0.5 * vol_ave.^2) * dtj + vol_ave .* Wt;
+
+    % Rates
+%     X_term = Xt + (rj - qj - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
+%     S_term = exp(X_term);
+%     if (j ~= M)
+%         r_term = -1/dtj*(log(B(t(j+1))) - log(B(t(j))));
+%         q_term = -1/dtj*(log(Q(t(j+1))) - log(Q(t(j)))); 
+%     else
+%         r_term = -1/dtj*(log(B(T)) - log(B(t(j))));
+%         q_term = -1/dtj*(log(Q(T)) - log(Q(t(j))));
+%     end
+%     d_ave = 0.5*(rj - qj + r_term - q_term);
+% 
+%     Xt = Xt + (d_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
+
     %vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
     Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
     %Xt = Xt + (rj - qj - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
