@@ -45,7 +45,7 @@ plot(T_maturities, discountData_df.rT, ".b");
 hold on 
 plot(T_extrap, r(T_extrap), "or");
 hold off
-title("Rate r(T)")
+title("Rate r_T")
 xlabel("Maturity T")
 legend(["", "Actual", "Inter/extra-polated"])
 
@@ -57,7 +57,7 @@ plot(T_maturities, discountData_df.qT, ".b");
 hold on 
 plot(T_extrap, q(T_extrap), "or");
 hold off
-title("Yield q(T)")
+title("Yield q_T")
 xlabel("Maturity T")
 legend(["", "Actual", "Inter/extra-polated"])
 
@@ -96,3 +96,28 @@ hold off
 title("F(T)")
 xlabel("Maturity T")
 legend(["", "Actual", "Inter/extra-polated"])
+
+%% 
+B = @(T) interp1(discountData_df.T,discountData_df.BT,T, 'linear', 'extrap');
+Q = @(T) interp1(discountData_df.T,discountData_df.QT,T, 'linear', 'extrap'); 
+
+%dt = 0.005;
+dt = 0.001;
+%t = min(discountData_df.T): dt: max(discountData_df.T);
+t = 0: dt: max(discountData_df.T);
+
+ri = -1/dt*(log(B(t(2:end))) - log(B(t(1:end-1))));
+qi = -1/dt*(log(Q(t(2:end))) - log(Q(t(1:end-1))));
+
+figure(6)
+plot(t(1:end-1), ri, "-b");
+title("Short rate estimates over each time interval")
+xlabel("t_i")
+ylabel("r")
+
+figure(7)
+plot(t(1:end-1), qi, "-r");
+hold off
+title("Dividend yield estimates over each time interval")
+xlabel("t_i")
+ylabel("q")
