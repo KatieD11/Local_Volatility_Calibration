@@ -90,7 +90,18 @@ xlabel("Log-strike");
 ylabel("Maturity");
 zlabel("Implied volatility");
 %legend(["Heston-like", "Power-law", "SPX-fit"])
-hold off; % Release the hold on the current axes
+%hold off; % Release the hold on the current axes
+
+% Add a vertical plane
+y_value = 0.2466;
+%yline(y_value, 'Color', 'red', 'LineWidth', 2, 'Label', 'Y = 0.2466');
+xPlane = [-0.8 0.6 0.6 -0.8];      % X coordinates of plane corners, ordered around the plane
+%yPlane1 = xPlane+0.5;      % Corresponding y coordinates for plane 1
+yPlane1 = [y_value y_value y_value y_value];
+zPlane = [0.1 0.1 0.6 0.6];  % Z coordinates of plane corners
+                 % Add to existing plot
+patch(xPlane, yPlane1, zPlane,'k', 'FaceAlpha', 0.3);  % Plot plane 1
+hold off
 %% Implied variance plot (for HST surface)
 %totImplVarHST
 figure(5)
@@ -155,7 +166,7 @@ exportgraphics(gcf,'Calibration/Calibration_results/'+dataset+'totImplVarPWR2.pd
     % i)  θϕ(θ) (1 + |ρ|)  <  4,  for  all  θ  >  0
     % ii) θϕ(θ)^2  (1 + |ρ|)  ≤  4,  for  all  θ  >  0
 theta = discountData_df.TotImplVar;
-%theta = (min(discountData_df.TotImplVar):0.005:0.1)';
+%theta = (min(discountData_df.TotImplVar):1:20)'; % Test extreme values
 
 % Power-law surface
 phi_PWR = calibration_params_PWR.eta./(theta.^calibration_params_PWR.gamma.*(1+theta).^(1-calibration_params_PWR.gamma));
@@ -192,6 +203,7 @@ xlabel("θ")
 ylabel("Value of C1/C2")
 legend(["","C1: θ ϕ(θ) (1 + |ρ|)", "C2: θ ϕ(θ)^2  (1 + |ρ|)"])
 %exportgraphics(gcf,'Calibration/Calibration_results/'+dataset+'butterflyHST.png')
+%exportgraphics(gcf,'Calibration/Calibration_results/'+dataset+'butterflyHST3.png')
 
 figure(11)
 plot(theta, C1)
@@ -206,7 +218,7 @@ legend(["C1: θ ϕ(θ) (1 + |ρ|)", "C2: θ ϕ(θ)^2  (1 + |ρ|)"])
 
 % SPX-fit surface
 eta = 2.016048*exp(calibration_params_SPX.eps);
-phi_SPX = eta/(theta.^calibration_params_SPX.gamma1.*...
+phi_SPX = eta./(theta.^calibration_params_SPX.gamma1.*...
     (1+calibration_params_SPX.beta1*theta).^calibration_params_SPX.gamma2.* ...
         (1+calibration_params_SPX.beta2*theta).^...
         (1-calibration_params_SPX.gamma1-calibration_params_SPX.gamma2));
@@ -224,6 +236,6 @@ xlabel("θ")
 ylabel("Value of C1/C2")
 legend(["","C1: θ ϕ(θ) (1 + |ρ|)", "C2: θ ϕ(θ)^2  (1 + |ρ|)"])
 %exportgraphics(gcf,'Calibration/Calibration_results/'+dataset+'butterflySPX.pdf','ContentType','vector')
-exportgraphics(gcf,'Calibration/Calibration_results/'+dataset+'butterflySPX.png')
+%exportgraphics(gcf,'Calibration/Calibration_results/'+dataset+'butterflySPX.png')
 
 
