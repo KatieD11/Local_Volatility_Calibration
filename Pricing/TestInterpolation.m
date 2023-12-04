@@ -97,27 +97,33 @@ title("F(T)")
 xlabel("Maturity T")
 legend(["", "Actual", "Inter/extra-polated"])
 
-%% 
-B = @(T) interp1(discountData_df.T,discountData_df.BT,T, 'linear', 'extrap');
-Q = @(T) interp1(discountData_df.T,discountData_df.QT,T, 'linear', 'extrap'); 
+%% Average rates / yields between maturities
 
-%dt = 0.005;
-dt = 0.001;
-%t = min(discountData_df.T): dt: max(discountData_df.T);
-t = 0: dt: max(discountData_df.T);
-
-ri = -1/dt*(log(B(t(2:end))) - log(B(t(1:end-1))));
-qi = -1/dt*(log(Q(t(2:end))) - log(Q(t(1:end-1))));
+Ts = discountData_df.T;
+dT = Ts(1:end) - [0;Ts(1:end-1)];
+r_int = -1./dT.*(log(discountData_df.BT(1:end)) - [0;log(discountData_df.BT(1:end-1))]);
+q_int = -1./dT.*(log(discountData_df.QT(1:end)) - [0;log(discountData_df.QT(1:end-1))]);
 
 figure(6)
-plot(t(1:end-1), ri, "-b");
-title("Short rate estimates over each time interval")
-xlabel("t_i")
+stairs([0;Ts]*365, [r_int; r_int(end)], "-r");
+hold on
+plot(Ts*365, r_int, ".r");
+plot(Ts*365, discountData_df.rT, "-b");
+plot(Ts*365, discountData_df.rT, ".b");
+hold off
+title("Short rate estimates")
+xlabel("t_i (days)")
 ylabel("r")
+legend(["Average rate over interval", "", "Average rate to maturity"], "Location","southeast")
 
 figure(7)
-plot(t(1:end-1), qi, "-r");
+stairs([0;Ts]*365, [q_int; q_int(end)], "-r");
+hold on
+plot(Ts*365, q_int, ".r");
+plot(Ts*365, discountData_df.qT, "-b");
+plot(Ts*365, discountData_df.qT, ".b");
 hold off
-title("Dividend yield estimates over each time interval")
-xlabel("t_i")
+title("Dividend yield estimates")
+xlabel("t_i (days)")
 ylabel("q")
+legend(["Average yield over interval", "", "Average yield to maturity"], "Location","southeast")
