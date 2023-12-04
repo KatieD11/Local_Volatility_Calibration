@@ -91,9 +91,8 @@ for j = 1:M
     % Local_vol at t, St 
     % set initial t0 time to 0.001 (to approx 0, since vol_t at 0 is undefined)
     if (j==1)
-%         rj = -1/dtj*(log(B(t(j))) - log(B(0.001)));
-%         qj = -1/dtj*(log(Q(t(j))) - log(Q(0.001)));
-        %vol_t = LocalVolFD(dT, dk, w, k(St,0.001), 0.001);
+%         rj = -1/dtj*(log(B(t(j))) - log(B(0)));
+%         qj = -1/dtj*(log(Q(t(j))) - log(Q(0)));
         vol_t = SSVIlocalVol(discountData_df, 0.001, k(St,0.001), ...
             calibration_params.rho, calibration_params.eps, ...
             calibration_params.gamma1, calibration_params.gamma2, ...
@@ -101,7 +100,6 @@ for j = 1:M
     else
 %         rj = -1/dtj*(log(B(t(j))) - log(B(t(j-1))));
 %         qj = -1/dtj*(log(Q(t(j))) - log(Q(t(j-1))));            
-        %vol_t = LocalVolFD(dT, dk, w, k(St,t(j-1)), t(j-1));
         vol_t = SSVIlocalVol(discountData_df, t(j-1), k(St,t(j-1)), ...
             calibration_params.rho, calibration_params.eps, ...
             calibration_params.gamma1, calibration_params.gamma2, ...
@@ -144,7 +142,6 @@ for j = 1:M
 % 
 %     Xt = Xt + (d_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
 
-    %vol_t = LocalVolFD(dT, dk, w, k(St,t(j)), t(j));
     Xt = Xt + (r_ave - q_ave - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
     %Xt = Xt + (rj - qj - 0.5 * vol_t.^2) * dtj + vol_t .* Wt;
     St = exp(Xt);
@@ -217,8 +214,7 @@ SSVI_vols = zeros(length(ks),1);
 %local_vols = zeros(length(ks),1);
 for i = 1:length(ks)
     wi = w(ks(i), T);
-    SSVI_vols(i) = sqrt(wi/T);
-    %local_vols(i) = LocalVolFD(dT, dk, w, ks(i), T); 
+    SSVI_vols(i) = sqrt(wi/T); 
 end
 target_vols = bid_ask_spread.sigma_target(bid_ask_spread.T_days== Tn_days);
 p_mape = mape(p_BSvol, target_vols)
