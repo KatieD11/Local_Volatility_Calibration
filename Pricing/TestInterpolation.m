@@ -1,4 +1,4 @@
-% Test inter- & extrapolation for parameters used in pricing
+% Test inter- & extrapolation of parameters
 % r(T), q(T), F(T), B(T), thetaT
 
 clear; clc;
@@ -105,25 +105,25 @@ r_int = -1./dT.*(log(discountData_df.BT(1:end)) - [0;log(discountData_df.BT(1:en
 q_int = -1./dT.*(log(discountData_df.QT(1:end)) - [0;log(discountData_df.QT(1:end-1))]);
 
 figure(6)
-stairs([0;Ts]*365, [r_int; r_int(end)], "-r");
+stairs([0;Ts]*365, [r_int; r_int(end)]*100, "-r");
 hold on
-plot(Ts*365, r_int, ".r");
-plot(Ts*365, discountData_df.rT, "-b");
-plot(Ts*365, discountData_df.rT, ".b");
+plot(Ts*365, r_int*100, ".r");
+plot(Ts*365, discountData_df.rT*100, "-b");
+plot(Ts*365, discountData_df.rT*100, ".b");
 hold off
 title("Short rate estimates")
 xlabel("t_i (days)")
-ylabel("r")
+ylabel("r (%)")
 legend(["Average rate over interval", "", "Average rate to maturity"], "Location","southeast")
 
 figure(7)
-stairs([0;Ts]*365, [q_int; q_int(end)], "-r");
+stairs([0;Ts]*365, [q_int; q_int(end)]*100, "-r");
 hold on
-plot(Ts*365, q_int, ".r");
-plot(Ts*365, discountData_df.qT, "-b");
-plot(Ts*365, discountData_df.qT, ".b");
+plot(Ts*365, q_int*100, ".r");
+plot(Ts*365, discountData_df.qT*100, "-b");
+plot(Ts*365, discountData_df.qT*100, ".b");
 hold off
 title("Dividend yield estimates")
 xlabel("t_i (days)")
-ylabel("q")
+ylabel("q (%)")
 legend(["Average yield over interval", "", "Average yield to maturity"], "Location","southeast")
